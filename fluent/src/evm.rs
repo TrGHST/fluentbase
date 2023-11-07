@@ -9,7 +9,7 @@ enum EvmInputSpec {
     // BlockCoinbaseA = 12,
     BlockRlpReceiptsA = 10,
     BlockRlpReceiptsB = 11,
-    BlockRlpStateLeavesA = 12, // MPT
+    BlockRlpStateLeavesA = 12,
     BlockRlpTxsA = 13,
     // BlockHashA = 11,
     // add more private inputs
