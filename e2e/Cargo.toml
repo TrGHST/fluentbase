@@ -22,3 +22,6 @@ serde_json = "1.0.108"
 hex = { version = "0.4.3", features = [] }
 hex-literal = "0.4.1"
 keccak-hash = "0.10.0"
+
+[features]
+default = ["rwasm-codegen/std"]

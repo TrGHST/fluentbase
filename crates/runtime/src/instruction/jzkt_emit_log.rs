@@ -3,7 +3,7 @@ use crate::{
     RuntimeContext,
 };
 use fluentbase_types::B256;
-use rwasm::{common::Trap, Caller};
+use rwasm::{core::Trap, Caller};
 
 pub struct JzktEmitLog;
 

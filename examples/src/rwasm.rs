@@ -2,7 +2,14 @@ use crate::deploy_internal;
 use alloc::string::ToString;
 use core::{alloc::Layout, ptr};
 use fluentbase_sdk::{LowLevelAPI, LowLevelSDK};
-use rwasm_codegen::{rwasm::common::ValueType, Compiler, CompilerConfig, ImportFunc, ImportLinker};
+use rwasm_codegen::{
+    compiler::{compiler::Compiler2, config::CompilerConfig},
+    rwasm::core::ValueType,
+    BinaryFormat,
+    BinaryFormatWriter,
+    ImportFunc,
+    ImportLinker,
+};
 
 pub fn deploy() {
     deploy_internal(include_bytes!("../bin/rwasm.wasm"))
@@ -33,16 +40,28 @@ pub fn main() {
         0,
     ));
     let mut compiler =
-        Compiler::new_with_linker(buffer, CompilerConfig::default(), Some(&import_linker)).unwrap();
-    let rwasm_bytecode = compiler.finalize().unwrap();
-    LowLevelSDK::sys_write(&rwasm_bytecode);
+        Compiler2::new_with_linker(buffer, CompilerConfig::default(), Some(&import_linker))
+            .unwrap();
+    let rwasm_module = compiler.finalize().unwrap();
+    let buffer = unsafe {
+        let buffer = alloc::alloc::alloc(Layout::from_size_align_unchecked(
+            rwasm_module.encoded_length(),
+            8usize,
+        ));
+        &mut *ptr::slice_from_raw_parts_mut(buffer, size)
+    };
+    let mut sink = BinaryFormatWriter::new(buffer);
+    rwasm_module
+        .write_binary(&mut sink)
+        .expect("can't write binary");
+    LowLevelSDK::sys_write(&buffer);
     LowLevelSDK::sys_halt(0);
 }
 
 #[cfg(test)]
 #[test]
 fn test_example_rwasm() {
-    let wasm_binary = include_bytes!("../bin/greeting.wasm");
+    let wasm_binary = include_bytes!("../bin/rwasm.wasm");
     LowLevelSDK::with_test_input(wasm_binary.to_vec());
     main();
 }

@@ -2,48 +2,35 @@ use fluentbase_codec::Encoder;
 use fluentbase_poseidon::poseidon_hash;
 use fluentbase_runtime::{
     instruction::runtime_register_sovereign_handlers,
-    types::STATE_MAIN,
+    types::{ExitCode, RuntimeError, STATE_MAIN},
     ExecutionResult,
     Runtime,
     RuntimeContext,
 };
-use fluentbase_sdk::evm::{Bytes, ContractInput};
 use hex_literal::hex;
 use rwasm_codegen::{
-    rwasm::{Config, Engine, Linker, Module, Store},
-    Compiler,
-    CompilerConfig,
+    compiler::{compiler::Compiler2, config::CompilerConfig},
+    rwasm::{Config, Engine, Linker, Module, StackLimits, Store},
+    BinaryFormat,
+    N_MAX_RECURSION_DEPTH,
+    N_MAX_STACK_HEIGHT,
 };
-use std::fs;
 
 fn wasm2rwasm(wasm_binary: &[u8], inject_fuel_consumption: bool) -> Vec<u8> {
     let import_linker = Runtime::<()>::new_sovereign_linker();
-    Compiler::new_with_linker(
+    let mut compiler = Compiler2::new_with_linker(
         &wasm_binary.to_vec(),
         CompilerConfig::default().fuel_consume(inject_fuel_consumption),
         Some(&import_linker),
     )
-    .unwrap()
-    .finalize()
-    .unwrap()
-}
-
-fn run_rwasm_with_evm_input(wasm_binary: Vec<u8>, input_data: &[u8]) -> ExecutionResult<()> {
-    let input_data = {
-        let mut contract_input = ContractInput::default();
-        contract_input.contract_input = Bytes::copy_from_slice(input_data);
-        contract_input.encode_to_vec(0)
-    };
-    let rwasm_binary = wasm2rwasm(wasm_binary.as_slice(), false);
-    let ctx = RuntimeContext::new(rwasm_binary)
-        .with_state(STATE_MAIN)
-        .with_fuel_limit(100_000)
-        .with_input(input_data)
-        .with_catch_trap(true);
-    let import_linker = Runtime::<()>::new_sovereign_linker();
-    let mut runtime = Runtime::<()>::new(ctx, &import_linker).unwrap();
-    runtime.data_mut().clean_output();
-    runtime.call().unwrap()
+    .unwrap();
+    compiler.translate(Default::default()).unwrap();
+    let rwasm_module = compiler.finalize().unwrap();
+    let trace = rwasm_module.trace();
+    println!("{}", trace);
+    let mut bytecode = Vec::new();
+    rwasm_module.write_binary_to_vec(&mut bytecode).unwrap();
+    bytecode
 }
 
 fn run_rwasm_with_raw_input(
@@ -52,8 +39,16 @@ fn run_rwasm_with_raw_input(
     verify_wasm: bool,
 ) -> ExecutionResult<()> {
     // make sure at least wasm binary works well
-    let wasm_exit_code = if verify_wasm {
-        let config = Config::default();
+    let wasm_result = if verify_wasm {
+        let mut config = Config::default();
+        config.set_stack_limits(
+            StackLimits::new(
+                N_MAX_STACK_HEIGHT,
+                N_MAX_STACK_HEIGHT,
+                N_MAX_RECURSION_DEPTH,
+            )
+            .unwrap(),
+        );
         let engine = Engine::new(&config);
         let module = Module::new(&engine, wasm_binary.as_slice()).unwrap();
         let ctx = RuntimeContext::<()>::new(vec![])
@@ -70,26 +65,19 @@ fn run_rwasm_with_raw_input(
             .start(&mut store)
             .unwrap();
         let main_func = instance.get_func(&store, "main").unwrap();
-        match main_func.call(&mut store, &[], &mut []) {
+        let exit_code = match main_func.call(&mut store, &[], &mut []) {
             Err(err) => {
-                // let mut lines = String::new();
-                // for log in store.tracer().logs.iter() {
-                //     let stack = log
-                //         .stack
-                //         .iter()
-                //         .map(|v| v.to_bits() as i64)
-                //         .collect::<Vec<_>>();
-                //     lines += format!("{}\t{:?}\t{:?}\n", log.program_counter, log.opcode, stack)
-                //         .as_str();
-                // }
-                // let _ = fs::create_dir("./tmp");
-                // fs::write("./tmp/cairo.txt", lines).unwrap();
-                panic!("err happened during wasm execution: {:?}", err);
+                let error_message = format!("err happened during wasm execution: {:?}", err);
+                let exit_code =
+                    Runtime::<RuntimeContext<()>>::catch_trap(&RuntimeError::Rwasm(err));
+                if exit_code == ExitCode::UnknownError as i32 {
+                    panic!("{}", error_message)
+                }
+                exit_code
             }
-            Ok(_) => {}
-        }
-        let wasm_exit_code = store.data().exit_code();
-        Some(wasm_exit_code)
+            Ok(_) => 0,
+        };
+        Some((store.data().output().clone(), exit_code))
     } else {
         None
     };
@@ -104,17 +92,21 @@ fn run_rwasm_with_raw_input(
     let mut runtime = Runtime::<()>::new(ctx, &import_linker).unwrap();
     runtime.data_mut().clean_output();
     let execution_result = runtime.call().unwrap();
-    if let Some(wasm_exit_code) = wasm_exit_code {
+    if let Some((wasm_output, wasm_exit_code)) = wasm_result {
+        let hex_output = hex::encode(execution_result.data().output());
+        println!("hex output: {}", hex_output);
         assert_eq!(execution_result.data().exit_code(), wasm_exit_code);
+        assert_eq!(execution_result.data().output().clone(), wasm_output);
     }
     execution_result
 }
 
 #[test]
 fn test_greeting() {
-    let output = run_rwasm_with_evm_input(
+    let output = run_rwasm_with_raw_input(
         include_bytes!("../../examples/bin/greeting.wasm").to_vec(),
         "Hello, World".as_bytes(),
+        false,
     );
     assert_eq!(output.data().exit_code(), 0);
     assert_eq!(
@@ -140,9 +132,10 @@ fn test_keccak256() {
 #[test]
 fn test_poseidon() {
     let input_data = "Hello, World".as_bytes();
-    let output = run_rwasm_with_evm_input(
+    let output = run_rwasm_with_raw_input(
         include_bytes!("../../examples/bin/poseidon.wasm").to_vec(),
         input_data,
+        false,
     );
     assert_eq!(output.data().exit_code(), 0);
     assert_eq!(
@@ -157,7 +150,7 @@ fn test_rwasm() {
     let output = run_rwasm_with_raw_input(
         include_bytes!("../../examples/bin/rwasm.wasm").to_vec(),
         input_data,
-        false,
+        true,
     );
     assert_eq!(output.data().exit_code(), 0);
 }
@@ -171,20 +164,20 @@ fn test_cairo() {
         input_data,
         true,
     );
-    let tracer = output.tracer();
-    {
-        let mut lines = String::new();
-        for log in tracer.logs.iter() {
-            let stack = log
-                .stack
-                .iter()
-                .map(|v| v.to_bits() as i64)
-                .collect::<Vec<_>>();
-            lines += format!("{}\t{:?}\t{:?}\n", log.program_counter, log.opcode, stack).as_str();
-        }
-        let _ = fs::create_dir("./tmp");
-        fs::write("./tmp/cairo.txt", lines).unwrap();
-    }
+    // let tracer = output.tracer();
+    // {
+    //     let mut lines = String::new();
+    //     for log in tracer.logs.iter() {
+    //         let stack = log
+    //             .stack
+    //             .iter()
+    //             .map(|v| v.to_bits() as i64)
+    //             .collect::<Vec<_>>();
+    //         lines += format!("{}\t{:?}\t{:?}\n", log.program_counter, log.opcode,
+    // stack).as_str();     }
+    //     let _ = fs::create_dir("./tmp");
+    //     fs::write("./tmp/cairo.txt", lines).unwrap();
+    // }
     println!(
         "Return data: {}",
         hex::encode(output.data().output().clone())
@@ -234,9 +227,10 @@ fn test_secp256k1_verify() {
 
 #[test]
 fn test_panic() {
-    let output = run_rwasm_with_evm_input(
+    let output = run_rwasm_with_raw_input(
         include_bytes!("../../examples/bin/panic.wasm").to_vec(),
         &[],
+        true,
     );
     assert_eq!(output.data().exit_code(), -71);
 }

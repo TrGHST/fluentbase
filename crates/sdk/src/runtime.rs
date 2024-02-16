@@ -260,10 +260,10 @@ impl LowLevelAPI for LowLevelSDK {
             None => -1,
         }
     }
-    fn jzkt_preimage_size(key32_ptr: *const u8) -> u32 {
+    fn jzkt_preimage_size(_key32_ptr: *const u8) -> u32 {
         todo!()
     }
-    fn jzkt_preimage_copy(key32_ptr: *const u8, preimage_ptr: *mut u8) {
+    fn jzkt_preimage_copy(_key32_ptr: *const u8, _preimage_ptr: *mut u8) {
         todo!()
     }
 

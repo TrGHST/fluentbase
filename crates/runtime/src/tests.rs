@@ -1,16 +1,24 @@
 use crate::{runtime::Runtime, types::SysFuncIdx, RuntimeContext};
-use rwasm_codegen::{instruction_set, Compiler, CompilerConfig, FuncOrExport, ReducedModule};
+use rwasm_codegen::{
+    compiler::{compiler::Compiler2, config::CompilerConfig, types::FuncOrExport},
+    instruction_set,
+    BinaryFormat,
+    RwasmModule,
+};
 
 pub(crate) fn wat2rwasm(wat: &str, consume_fuel: bool) -> Vec<u8> {
     let import_linker = Runtime::<()>::new_sovereign_linker();
     let wasm_binary = wat::parse_str(wat).unwrap();
-    let mut compiler = Compiler::new_with_linker(
+    let mut compiler = Compiler2::new_with_linker(
         &wasm_binary,
         CompilerConfig::default().fuel_consume(consume_fuel),
         Some(&import_linker),
     )
     .unwrap();
-    compiler.finalize().unwrap()
+    let rwasm_module = compiler.finalize().unwrap();
+    let mut buffer = Vec::new();
+    rwasm_module.write_binary_to_vec(&mut buffer).unwrap();
+    buffer
 }
 
 #[test]
@@ -62,28 +70,28 @@ fn test_input_output() {
         .with_state(true)
         .fuel_consume(true)
         .with_input_code(instruction_set! {
-            I32Const(1)
+            I64Const32(1)
             MemoryGrow
             Drop
-            I32Const(0)
-            I32Const(0)
-            I32Const(8)
+            I64Const32(0)
+            I64Const32(0)
+            I64Const32(8)
             Call(SysFuncIdx::SYS_READ)
             Drop
-            I32Const(0)
+            I64Const32(0)
             I64Load(0)
         })
         .with_output_code(instruction_set! {
             LocalGet(1)
-            I32Const(0)
+            I64Const32(0)
             LocalSet(2)
             I64Store(0)
-            I32Const(0)
-            I32Const(8)
+            I64Const32(0)
+            I64Const32(8)
             Call(SysFuncIdx::SYS_WRITE)
         });
     let mut compiler =
-        Compiler::new_with_linker(wasm_binary.as_slice(), config, Some(&import_linker)).unwrap();
+        Compiler2::new_with_linker(wasm_binary.as_slice(), config, Some(&import_linker)).unwrap();
     compiler
         .translate(FuncOrExport::StateRouter(
             vec![FuncOrExport::Export("main")],
@@ -92,7 +100,11 @@ fn test_input_output() {
             },
         ))
         .unwrap();
-    let rwasm_bytecode = compiler.finalize().unwrap();
+    let rwasm_module = compiler.finalize().unwrap();
+    let mut rwasm_bytecode = Vec::new();
+    rwasm_module
+        .write_binary_to_vec(&mut rwasm_bytecode)
+        .unwrap();
 
     let mut runtime = Runtime::<()>::new(
         RuntimeContext::new(rwasm_bytecode.as_slice())
@@ -134,7 +146,7 @@ fn test_wrong_indirect_type() {
     )
     .unwrap();
     let import_linker = Runtime::<()>::new_sovereign_linker();
-    let mut compiler = Compiler::new_with_linker(
+    let mut compiler = Compiler2::new_with_linker(
         wasm_binary.as_slice(),
         CompilerConfig::default()
             .fuel_consume(true)
@@ -150,10 +162,14 @@ fn test_wrong_indirect_type() {
             },
         ))
         .unwrap();
-    let rwasm_bytecode = compiler.finalize().unwrap();
+    let rwasm_module = compiler.finalize().unwrap();
+    let mut rwasm_bytecode = Vec::new();
+    rwasm_module
+        .write_binary_to_vec(&mut rwasm_bytecode)
+        .unwrap();
 
     let mut runtime = Runtime::<()>::new(
-        RuntimeContext::new(rwasm_bytecode.as_slice())
+        RuntimeContext::new(rwasm_bytecode)
             .with_fuel_limit(1_000_000)
             .with_state(1000),
         &import_linker,
@@ -192,7 +208,7 @@ fn test_keccak256() {
         false,
     );
 
-    let _module = ReducedModule::new(&rwasm_binary).unwrap();
+    let _module = RwasmModule::new(&rwasm_binary).unwrap();
     // println!("module.trace_binary(): {:?}", module.trace());
     let ctx = RuntimeContext::new(rwasm_binary);
     let import_linker = Runtime::<()>::new_sovereign_linker();

@@ -4,7 +4,7 @@ use crate::{
     RuntimeContext,
 };
 use fluentbase_types::{Account, ExitCode, STATE_DEPLOY};
-use rwasm::{common::Trap, Caller};
+use rwasm::{core::Trap, Caller};
 
 pub struct RwasmCreate;
 

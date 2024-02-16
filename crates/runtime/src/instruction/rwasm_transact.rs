@@ -4,7 +4,7 @@ use crate::{
     RuntimeContext,
 };
 use fluentbase_types::{ExitCode, STATE_MAIN};
-use rwasm::{common::Trap, Caller};
+use rwasm::{core::Trap, Caller};
 
 pub struct RwasmTransact;
 

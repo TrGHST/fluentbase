@@ -1,5 +1,5 @@
 use rwasm::{
-    common::{Trap, TrapCode},
+    core::{Trap, TrapCode},
     engine::{bytecode::FuncIdx, CompiledFunc},
 };
 #[cfg(feature = "std")]
@@ -42,6 +42,7 @@ pub enum ExitCode {
     OutOfFuel = -2015,
     GrowthOperationLimited = -2016,
     UnknownError = -2017,
+    UnresolvedFunction = -2018,
 }
 
 impl ExitCode {
@@ -72,6 +73,7 @@ impl From<TrapCode> for ExitCode {
             TrapCode::BadSignature => ExitCode::BadSignature,
             TrapCode::OutOfFuel => ExitCode::OutOfFuel,
             TrapCode::GrowthOperationLimited => ExitCode::GrowthOperationLimited,
+            TrapCode::UnresolvedFunction => ExitCode::UnresolvedFunction,
         }
     }
 }

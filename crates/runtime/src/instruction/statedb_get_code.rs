@@ -3,7 +3,7 @@ use crate::{
     RuntimeContext,
 };
 use fluentbase_types::ExitCode;
-use rwasm::{common::Trap, Caller};
+use rwasm::{core::Trap, Caller};
 
 pub struct StateDbGetCode;
 

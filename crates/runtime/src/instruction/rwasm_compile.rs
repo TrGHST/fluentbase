@@ -1,9 +1,5 @@
-use crate::{Runtime, RuntimeContext};
-use rwasm_codegen::{
-    rwasm::{common::Trap, Caller},
-    Compiler,
-    CompilerConfig,
-};
+use crate::RuntimeContext;
+use rwasm_codegen::rwasm::{core::Trap, Caller};
 
 pub struct RwasmCompile;
 
@@ -25,18 +21,19 @@ impl RwasmCompile {
         }
     }
 
-    pub fn fn_impl(input: &[u8], output_len: u32) -> Result<Vec<u8>, i32> {
-        let import_linker = Runtime::<()>::new_sovereign_linker();
-        let mut compiler = Compiler::new_with_linker(
-            input.as_ref(),
-            CompilerConfig::default().fuel_consume(true),
-            Some(&import_linker),
-        )
-        .map_err(|err| err.into_i32())?;
-        let output = compiler.finalize().map_err(|err| err.into_i32())?;
-        if output_len < output.len() as u32 {
-            return Err(output.len() as i32);
-        }
-        Ok(output)
+    pub fn fn_impl(_input: &[u8], _output_len: u32) -> Result<Vec<u8>, i32> {
+        // let import_linker = Runtime::<()>::new_sovereign_linker();
+        // let mut compiler = Compiler2::new_with_linker(
+        //     input.as_ref(),
+        //     CompilerConfig::default().fuel_consume(true),
+        //     Some(&import_linker),
+        // )
+        // .map_err(|err| err.into_i32())?;
+        // let output = compiler.finalize().map_err(|err| err.into_i32())?;
+        // if output_len < output.len() as u32 {
+        //     return Err(output.len() as i32);
+        // }
+        // Ok(output)
+        todo!("remove this function")
     }
 }

@@ -1,15 +1,15 @@
-use rwasm_codegen::{rwasm::Error as RwasmError, ReducedModuleError};
+use rwasm_codegen::{rwasm::Error as RwasmError, BinaryFormatError};
 
 #[derive(Debug)]
 pub enum RuntimeError {
-    ReducedModule(ReducedModuleError),
+    BinaryFormat(BinaryFormatError),
     Rwasm(RwasmError),
-    StorageError(String),
+    MissingEntrypoint,
 }
 
-impl From<ReducedModuleError> for RuntimeError {
-    fn from(value: ReducedModuleError) -> Self {
-        Self::ReducedModule(value)
+impl From<BinaryFormatError> for RuntimeError {
+    fn from(value: BinaryFormatError) -> Self {
+        Self::BinaryFormat(value)
     }
 }
 

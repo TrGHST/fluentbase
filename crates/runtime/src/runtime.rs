@@ -8,10 +8,9 @@ use crate::{
     journal::IJournaledTrie,
     types::RuntimeError,
 };
-use fluentbase_types::{AccountDb, Address, ExitCode, RECURSIVE_MAX_DEPTH, STACK_MAX_HEIGHT};
+use fluentbase_types::{AccountDb, Address, ExitCode};
 use rwasm_codegen::{
     rwasm::{
-        engine::Tracer,
         AsContextMut,
         Config,
         Engine,
@@ -27,8 +26,9 @@ use rwasm_codegen::{
     },
     ImportLinker,
     InstructionSet,
-    ReducedModule,
-    ReducedModuleError,
+    RwasmModule,
+    N_MAX_RECURSION_DEPTH,
+    N_MAX_STACK_HEIGHT,
 };
 use std::{cell::RefCell, mem::take, rc::Rc};
 
@@ -215,7 +215,7 @@ impl<'t, T> RuntimeContext<'t, T> {
 
 pub struct ExecutionResult<'t, T> {
     runtime_context: RuntimeContext<'t, T>,
-    tracer: Tracer,
+    // tracer: Tracer,
     fuel_consumed: Option<u64>,
 }
 
@@ -223,7 +223,7 @@ impl<'t, T> ExecutionResult<'t, T> {
     pub fn cloned(store: &Store<RuntimeContext<'t, T>>) -> Self {
         Self {
             runtime_context: store.data().clone(),
-            tracer: store.tracer().clone(),
+            // tracer: store.tracer().clone(),
             fuel_consumed: store.fuel_consumed(),
         }
     }
@@ -232,7 +232,7 @@ impl<'t, T> ExecutionResult<'t, T> {
         let fuel_consumed = store.fuel_consumed();
         Self {
             runtime_context: take(store.data_mut()),
-            tracer: take(store.tracer_mut()),
+            // tracer: take(store.tracer_mut()),
             fuel_consumed,
         }
     }
@@ -241,9 +241,9 @@ impl<'t, T> ExecutionResult<'t, T> {
         &self.runtime_context.bytecode
     }
 
-    pub fn tracer(&self) -> &Tracer {
-        &self.tracer
-    }
+    // pub fn tracer(&self) -> &Tracer {
+    //     &self.tracer
+    // }
 
     pub fn data(&self) -> &RuntimeContext<'t, T> {
         &self.runtime_context
@@ -287,7 +287,7 @@ impl<'t, T> Runtime<'t, T> {
             runtime_context.exit_code = Self::catch_trap(&runtime.err().unwrap());
             Ok(ExecutionResult {
                 runtime_context,
-                tracer: Default::default(),
+                // tracer: Default::default(),
                 fuel_consumed: None,
             })
         } else {
@@ -316,7 +316,12 @@ impl<'t, T> Runtime<'t, T> {
         let engine = {
             let mut config = Config::default();
             config.set_stack_limits(
-                StackLimits::new(STACK_MAX_HEIGHT, STACK_MAX_HEIGHT, RECURSIVE_MAX_DEPTH).unwrap(),
+                StackLimits::new(
+                    N_MAX_STACK_HEIGHT,
+                    N_MAX_STACK_HEIGHT,
+                    N_MAX_RECURSION_DEPTH,
+                )
+                .unwrap(),
             );
             config.floats(false);
             if fuel_limit > 0 {
@@ -327,8 +332,8 @@ impl<'t, T> Runtime<'t, T> {
         };
 
         let (module, bytecode) = {
-            let reduced_module = ReducedModule::new(runtime_context.bytecode.as_slice())
-                .map_err(Into::<RuntimeError>::into)?;
+            let reduced_module =
+                RwasmModule::new(&runtime_context.bytecode).map_err(Into::<RuntimeError>::into)?;
             let func_type = runtime_context
                 .func_type
                 .clone()
@@ -373,9 +378,7 @@ impl<'t, T> Runtime<'t, T> {
             .instance
             .unwrap()
             .get_func(&mut self.store, "main")
-            .ok_or(RuntimeError::ReducedModule(
-                ReducedModuleError::MissingEntrypoint,
-            ))?;
+            .ok_or(RuntimeError::MissingEntrypoint)?;
         let res = func
             .call(&mut self.store, &[], &mut [])
             .map_err(Into::<RuntimeError>::into);
@@ -444,15 +447,15 @@ impl<'t, T> Runtime<'t, T> {
 
     fn restore_trace(&mut self) {
         // we need to fix logs, because we lost information about instr meta during conversion
-        let tracer = self.store.tracer_mut();
-        let call_id = tracer.logs.first().map(|v| v.call_id).unwrap_or_default();
-        for log in tracer.logs.iter_mut() {
-            if log.call_id != call_id {
-                continue;
-            }
-            let instr = self.bytecode.get(log.index).unwrap();
-            log.opcode = *instr;
-        }
+        // let tracer = self.store.tracer_mut();
+        // let call_id = tracer.logs.first().map(|v| v.call_id).unwrap_or_default();
+        // for log in tracer.logs.iter_mut() {
+        //     if log.call_id != call_id {
+        //         continue;
+        //     }
+        //     let instr = self.bytecode.get(log.index).unwrap();
+        //     log.opcode = *instr;
+        // }
     }
 
     pub fn data(&self) -> &RuntimeContext<'t, T> {

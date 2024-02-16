@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "ahash"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c3a9648d43b9cd48db467b3f87fdd6e146bcc88ab0180006cef2179fe11d01"
+checksum = "42cd52102d3df161c77a887b608d7a4897d7cc112886a9537b738a887a03aaff"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -415,7 +415,7 @@ dependencies = [
 [[package]]
 name = "cairo-platinum-prover"
 version = "0.5.0"
-source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#212c040c5fa21fcb5095a0b1ac92501292517db0"
+source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#3211249e69b443ad4e8d34548b1665612a40c3a4"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "cairo-vm",
@@ -486,9 +486,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clap"
-version = "4.4.18"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e578d6ec4194633722ccf9544794b71b1385c3c027efe0c55db226fc880865c"
+checksum = "80c21025abd42669a92efc996ef13cfb2c5c627858421ea58d5c3b331a6c134f"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -496,9 +496,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.4.18"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4df4df40ec50c46000231c914968278b1eb05098cf8f1b3a518a95030e71d1c7"
+checksum = "458bf1f341769dfcf849846f65dffdf9146daa56bcd2a47cb4e1de9915567c99"
 dependencies = [
  "anstream",
  "anstyle",
@@ -508,9 +508,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.4.7"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9804afaaf59a91e75b022a30fb7229a7901f60c755489cc61c9b423b836442"
+checksum = "307bc0538d5f0f83b8248db3087aa92fe504e4691294d0c96c0eabc33f47ba47"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -520,9 +520,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
+checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
 name = "colorchoice"
@@ -532,9 +532,9 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
 name = "const-hex"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5104de16b218eddf8e34ffe2f86f74bfa4e61e95a1b89732fccf6325efd0557"
+checksum = "18d59688ad0945eaf6b84cb44fedbe93484c81b48970e98f09db8a22832d7961"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -723,9 +723,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
 name = "elliptic-curve"
@@ -782,9 +782,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.11.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05e7cf40684ae96ade6232ed84582f40ce0a66efcd43a5117aef610534f8e0b8"
+checksum = "6c012a26a7f605efc424dd53697843a72be7dc86ad2d01f7814337794a12231d"
 dependencies = [
  "anstream",
  "anstyle",
@@ -887,6 +887,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluentbase-bin"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "ctor",
+ "env_logger 0.11.2",
+ "fluentbase-runtime",
+ "log",
+ "rwasm-codegen 0.30.0",
+ "wat",
+]
+
+[[package]]
 name = "fluentbase-codec"
 version = "0.1.0"
 dependencies = [
@@ -896,6 +909,19 @@ dependencies = [
  "hashbrown",
  "hex",
  "hex-literal",
+ "paste",
+ "serde",
+]
+
+[[package]]
+name = "fluentbase-codec"
+version = "0.1.0"
+source = "git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel#29674c2b07fdeef13d2ec2f90faa95230729ab70"
+dependencies = [
+ "alloy-primitives",
+ "byteorder",
+ "casey",
+ "hashbrown",
  "paste",
  "serde",
 ]
@@ -915,8 +941,8 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "byteorder",
- "fluentbase-sdk",
- "fluentbase-types",
+ "fluentbase-sdk 0.1.0",
+ "fluentbase-types 0.1.0",
  "hex",
  "keccak-hash",
  "revm-interpreter",
@@ -926,14 +952,14 @@ dependencies = [
 name = "fluentbase-e2e"
 version = "0.1.0"
 dependencies = [
- "fluentbase-codec",
+ "fluentbase-codec 0.1.0",
  "fluentbase-poseidon",
  "fluentbase-runtime",
- "fluentbase-sdk",
+ "fluentbase-sdk 0.1.0",
  "hex",
  "hex-literal",
  "keccak-hash",
- "rwasm-codegen",
+ "rwasm-codegen 0.30.0",
  "serde_json",
  "wasmi",
 ]
@@ -944,13 +970,13 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "cairo-platinum-prover",
- "fluentbase-codec",
- "fluentbase-sdk",
+ "fluentbase-codec 0.1.0",
+ "fluentbase-sdk 0.1.0",
  "hashbrown",
  "hex",
  "hex-literal",
  "lambdaworks-math",
- "rwasm-codegen",
+ "rwasm-codegen 0.30.0",
  "serde",
  "serial_test",
  "stark-platinum-prover",
@@ -973,7 +999,7 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "fluentbase-poseidon",
- "fluentbase-types",
+ "fluentbase-types 0.1.0",
  "fluentbase-zktrie",
  "halo2curves 0.3.1",
  "hashbrown",
@@ -981,8 +1007,8 @@ dependencies = [
  "hex-literal",
  "k256",
  "keccak-hash",
- "rwasm",
- "rwasm-codegen",
+ "rwasm 0.30.0",
+ "rwasm-codegen 0.30.0",
  "sha2",
  "wat",
 ]
@@ -995,12 +1021,12 @@ dependencies = [
  "ctor",
  "env_logger 0.10.2",
  "ethereum-types",
- "fluentbase-codec",
- "fluentbase-sdk",
+ "fluentbase-codec 0.1.0",
+ "fluentbase-sdk 0.1.0",
  "hashbrown",
  "log",
  "once_cell",
- "rwasm-codegen",
+ "rwasm-codegen 0.30.0",
  "wat",
 ]
 
@@ -1012,18 +1038,18 @@ dependencies = [
  "bitvec",
  "ctor",
  "env_logger 0.10.2",
- "fluentbase-codec",
+ "fluentbase-codec 0.1.0",
  "fluentbase-runtime",
  "fluentbase-rwasm-code-snippets",
- "fluentbase-sdk",
- "fluentbase-types",
+ "fluentbase-sdk 0.1.0",
+ "fluentbase-types 0.1.0",
  "hashbrown",
  "hex",
  "keccak-hash",
  "lazy_static",
  "log",
- "rwasm",
- "rwasm-codegen",
+ "rwasm 0.30.0",
+ "rwasm-codegen 0.30.0",
 ]
 
 [[package]]
@@ -1031,9 +1057,20 @@ name = "fluentbase-sdk"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "fluentbase-codec",
+ "fluentbase-codec 0.1.0",
  "fluentbase-runtime",
- "fluentbase-types",
+ "fluentbase-types 0.1.0",
+ "lol_alloc",
+ "paste",
+]
+
+[[package]]
+name = "fluentbase-sdk"
+version = "0.1.0"
+source = "git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel#29674c2b07fdeef13d2ec2f90faa95230729ab70"
+dependencies = [
+ "fluentbase-codec 0.1.0 (git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel)",
+ "fluentbase-types 0.1.0 (git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel)",
  "lol_alloc",
  "paste",
 ]
@@ -1044,10 +1081,21 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "hashbrown",
- "rwasm",
- "rwasm-codegen",
+ "rwasm 0.30.0",
+ "rwasm-codegen 0.30.0",
  "strum",
  "strum_macros",
+]
+
+[[package]]
+name = "fluentbase-types"
+version = "0.1.0"
+source = "git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel#29674c2b07fdeef13d2ec2f90faa95230729ab70"
+dependencies = [
+ "alloy-primitives",
+ "hashbrown",
+ "rwasm 0.30.0 (git+https://github.com/fluentlabs-xyz/rwasm?branch=devel)",
+ "rwasm-codegen 0.30.0 (git+https://github.com/fluentlabs-xyz/rwasm?branch=devel)",
 ]
 
 [[package]]
@@ -1258,9 +1306,9 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.4"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d3d0e0f38255e7fa3cf31335b3a56f05febd18025f4db5ef7a0cfb4f8da651f"
+checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
 
 [[package]]
 name = "hex"
@@ -1329,9 +1377,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.2"
+version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
+checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -1345,12 +1393,12 @@ checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.10"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bad00257d07be169d870ab665980b06cdb366d792ad690bf2e76876dc503455"
+checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
 dependencies = [
  "hermit-abi",
- "rustix",
+ "libc",
  "windows-sys",
 ]
 
@@ -1433,7 +1481,7 @@ dependencies = [
 [[package]]
 name = "lambdaworks-crypto"
 version = "0.5.0"
-source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#212c040c5fa21fcb5095a0b1ac92501292517db0"
+source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#3211249e69b443ad4e8d34548b1665612a40c3a4"
 dependencies = [
  "lambdaworks-math",
  "serde",
@@ -1444,7 +1492,7 @@ dependencies = [
 [[package]]
 name = "lambdaworks-math"
 version = "0.5.0"
-source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#212c040c5fa21fcb5095a0b1ac92501292517db0"
+source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#3211249e69b443ad4e8d34548b1665612a40c3a4"
 dependencies = [
  "rayon",
  "serde",
@@ -1546,19 +1594,18 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.45"
+version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225d3389fb3509a24c93f5c29eb6bde2586b98d9f016636dff58d7c6f7569cd9"
+checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "autocfg",
  "num-traits",
 ]
 
 [[package]]
 name = "num-traits"
-version = "0.2.17"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
+checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
 dependencies = [
  "autocfg",
  "libm",
@@ -1863,7 +1910,7 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 name = "revm-interpreter"
 version = "1.3.0"
 dependencies = [
- "fluentbase-sdk",
+ "fluentbase-sdk 0.1.0 (git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel)",
  "revm-primitives",
 ]
 
@@ -1877,7 +1924,7 @@ dependencies = [
  "bitflags 2.4.2",
  "bitvec",
  "enumn",
- "fluentbase-sdk",
+ "fluentbase-sdk 0.1.0 (git+https://github.com/fluentlabs-xyz/fluentbase.git?branch=devel)",
  "hashbrown",
  "hex",
 ]
@@ -1990,10 +2037,10 @@ dependencies = [
 [[package]]
 name = "rwasm"
 version = "0.30.0"
-source = "git+https://github.com/fluentlabs-xyz/rwasm?branch=devel#a8c14817d2e5219177b60831b2082ba538dd96ea"
 dependencies = [
  "byteorder",
  "downcast-rs",
+ "hashbrown",
  "libm",
  "num-traits",
  "paste",
@@ -2005,27 +2052,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "rwasm-bin"
-version = "0.1.0"
+name = "rwasm"
+version = "0.30.0"
+source = "git+https://github.com/fluentlabs-xyz/rwasm?branch=devel#80777385f81da618ff394a8b38eb0f72f4208dde"
 dependencies = [
- "clap",
- "ctor",
- "env_logger 0.11.1",
- "fluentbase-runtime",
- "lazy_static",
- "log",
- "rwasm",
- "rwasm-codegen",
- "wat",
+ "byteorder",
+ "downcast-rs",
+ "libm",
+ "num-traits",
+ "paste",
+ "smallvec",
+ "spin 0.9.8",
+ "wasmparser-nostd",
 ]
 
 [[package]]
 name = "rwasm-codegen"
 version = "0.30.0"
-source = "git+https://github.com/fluentlabs-xyz/rwasm?branch=devel#a8c14817d2e5219177b60831b2082ba538dd96ea"
 dependencies = [
  "byteorder",
- "rwasm",
+ "hashbrown",
+ "rwasm 0.30.0",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
+name = "rwasm-codegen"
+version = "0.30.0"
+source = "git+https://github.com/fluentlabs-xyz/rwasm?branch=devel#80777385f81da618ff394a8b38eb0f72f4208dde"
+dependencies = [
+ "byteorder",
+ "rwasm 0.30.0 (git+https://github.com/fluentlabs-xyz/rwasm?branch=devel)",
 ]
 
 [[package]]
@@ -2239,7 +2297,7 @@ dependencies = [
 [[package]]
 name = "stark-platinum-prover"
 version = "0.5.0"
-source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#212c040c5fa21fcb5095a0b1ac92501292517db0"
+source = "git+https://github.com/lambdaclass/lambdaworks?branch=main#3211249e69b443ad4e8d34548b1665612a40c3a4"
 dependencies = [
  "bincode 2.0.0-rc.2",
  "itertools 0.11.0",
@@ -2291,9 +2349,9 @@ dependencies = [
 
 [[package]]
 name = "starknet-curve"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a68a0d87ae56572abf83ddbfd44259a7c90dbeeee1629a1ffe223e7f9a8f3052"
+checksum = "63c454fecadfb3fe56ee82c405439d663c8a037667cc9d8e4acb1fb17e15b1af"
 dependencies = [
  "starknet-ff",
 ]
@@ -2318,9 +2376,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strsim"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+checksum = "5ee073c9e4cd00e28217186dbe12796d692868f432bf2e97ee73bed0c56dfa01"
 
 [[package]]
 name = "strum"
@@ -2377,13 +2435,12 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.9.0"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01ce4141aa927a6d1bd34a041795abd0db1cccba5d5f24b009f694bdf3a1f3fa"
+checksum = "a365e8cd18e44762ef95d87f284f4b5cd04107fec2ff3052bd6a3e6069669e67"
 dependencies = [
  "cfg-if",
  "fastrand",
- "redox_syscall",
  "rustix",
  "windows-sys",
 ]
@@ -2399,18 +2456,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d54378c645627613241d077a3a79db965db602882668f9136ac42af9ecb730ad"
+checksum = "1e45bcbe8ed29775f228095caf2cd67af7a4ccf756ebff23a306bf3e8b47b24b"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa0faa943b50f3db30a20aa7e265dbc66076993efed8463e8de414e5d06d3471"
+checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2600,9 +2657,9 @@ checksum = "4f186bd2dcf04330886ce82d6f33dd75a7bfcf69ecf5763b89fcde53b6ac9838"
 
 [[package]]
 name = "wasm-encoder"
-version = "0.41.0"
+version = "0.41.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e09bca7d6388637d27fb5edbeab11f56bfabcef8743c55ae34370e1e5030a071"
+checksum = "972f97a5d8318f908dded23594188a90bcd09365986b1163e66d70170e5287ae"
 dependencies = [
  "leb128",
 ]
@@ -2649,9 +2706,9 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "70.0.2"
+version = "71.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3d5061300042ff5065123dae1e27d00c03f567d34a2937c8472255148a216dc"
+checksum = "647c3ac4354da32688537e8fc4d2fe6c578df51896298cb64727d98088a1fd26"
 dependencies = [
  "bumpalo",
  "leb128",
@@ -2662,9 +2719,9 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.85"
+version = "1.0.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afd7357b6cc46d46a2509c43dcb1dd4131dafbf4e75562d87017b5a05ffad2d6"
+checksum = "b69c36f634411568a2c6d24828b674961e37ea03340fe1d605c337ed8162d901"
 dependencies = [
  "wast",
 ]
@@ -2835,9 +2892,9 @@ checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
 
 [[package]]
 name = "winnow"
-version = "0.5.37"
+version = "0.5.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7cad8365489051ae9f054164e459304af2e7e9bb407c958076c8bf4aef52da5"
+checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
 dependencies = [
  "memchr",
 ]

@@ -1,5 +1,5 @@
 use crate::{types::Address, RuntimeContext};
-use rwasm::{common::Trap, Caller};
+use rwasm::{core::Trap, Caller};
 
 pub struct StateDbGetCodeSize;
 

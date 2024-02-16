@@ -109,8 +109,8 @@ macro_rules! impl_runtime_handler {
                     stringify!($module).to_string(),
                     stringify!($name).to_string(),
                     $sys_func as u16,
-                    &[rwasm::common::ValueType::I32; $crate::count_call_args!($($t)*)],
-                    &[rwasm::common::ValueType::I32; $crate::count_ret_args!($out)],
+                    &[rwasm::core::ValueType::I32; $crate::count_call_args!($($t)*)],
+                    &[rwasm::core::ValueType::I32; $crate::count_ret_args!($out)],
                     $crate::types::SysFuncIdx::$sys_func.fuel_cost(),
                 ));
             }
@@ -125,7 +125,7 @@ macro_rules! impl_runtime_handler {
                     stringify!($name),
                     rwasm::Func::wrap(
                         store.as_context_mut(),
-                        |caller: Caller<'_, RuntimeContext<'t, T>>, $($t)*| -> Result<$out, rwasm::common::Trap> {
+                        |caller: Caller<'_, RuntimeContext<'t, T>>, $($t)*| -> Result<$out, rwasm::core::Trap> {
                             return $crate::forward_call_args! { Self::fn_handler, caller, [$($t)*] };
                         })
                 ).unwrap();
