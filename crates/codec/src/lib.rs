@@ -3,11 +3,6 @@
 extern crate alloc;
 extern crate core;
 
-#[cfg(feature = "big_endian")]
-use byteorder::BE as Endianness;
-#[cfg(not(feature = "big_endian"))]
-use byteorder::LE as Endianness;
-
 pub use crate::{
     buffer::{BufferDecoder, BufferEncoder, WritableBuffer},
     empty::EmptyVec,
