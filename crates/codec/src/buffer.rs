@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use byteorder::ByteOrder;
 use paste::paste;
-use std::marker::PhantomData;
+use phantom_type::PhantomType;
 
 pub trait WritableBuffer<E: ByteOrder> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
@@ -30,7 +30,7 @@ pub struct FixedEncoder<E, const N: usize> {
     header_length: usize,
     body_length: usize,
     buffer: [u8; N],
-    _phantom_data: PhantomData<E>,
+    _phantom_data: PhantomType<E>,
 }
 
 impl<E, const N: usize> FixedEncoder<E, N> {
@@ -100,7 +100,7 @@ impl<E: ByteOrder, const N: usize> WritableBuffer<E> for FixedEncoder<E, N> {
 #[derive(Default)]
 pub struct BufferEncoder<E> {
     buffer: Vec<u8>,
-    _phantom_data: PhantomData<E>,
+    _phantom_data: PhantomType<E>,
 }
 
 impl<E: ByteOrder> BufferEncoder<E> {
@@ -150,7 +150,7 @@ impl<E: ByteOrder> WritableBuffer<E> for BufferEncoder<E> {
 #[derive(Default)]
 pub struct BufferDecoder<'a, E: ByteOrder> {
     buffer: &'a [u8],
-    _phantom_data: PhantomData<E>,
+    _phantom_data: PhantomType<E>,
 }
 
 macro_rules! impl_byte_reader {

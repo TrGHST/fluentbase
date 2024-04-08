@@ -18,6 +18,7 @@ strum_macros = { version = "0.25.2", optional = true }
 serde = { workspace = true }
 casey = { workspace = true }
 paste = { workspace = true }
+phantom-type = { workspace = true }
 
 [dev-dependencies]
 hex = "0.4.3"

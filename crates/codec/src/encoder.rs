@@ -1,7 +1,7 @@
 use crate::buffer::{BufferDecoder, BufferEncoder, FixedEncoder, WritableBuffer};
 use alloc::vec::Vec;
 use byteorder::ByteOrder;
-use core::marker::PhantomData;
+use phantom_type::PhantomType;
 
 pub trait Encoder<E: ByteOrder, T: Sized> {
     const HEADER_SIZE: usize;
@@ -35,8 +35,8 @@ pub trait Encoder<E: ByteOrder, T: Sized> {
 }
 
 pub struct FieldEncoder<E: ByteOrder, T: Sized + Encoder<E, T>, const FIELD_OFFSET: usize>(
-    PhantomData<E>,
-    PhantomData<T>,
+    PhantomType<E>,
+    PhantomType<T>,
 );
 
 impl<E: ByteOrder, T: Sized + Encoder<E, T>, const FIELD_OFFSET: usize>
