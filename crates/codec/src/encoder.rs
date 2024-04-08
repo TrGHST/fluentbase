@@ -1,8 +1,9 @@
 use crate::buffer::{BufferDecoder, BufferEncoder, FixedEncoder, WritableBuffer};
 use alloc::vec::Vec;
+use byteorder::ByteOrder;
 use core::marker::PhantomData;
 
-pub trait Encoder<T: Sized> {
+pub trait Encoder<E: ByteOrder, T: Sized> {
     const HEADER_SIZE: usize;
 
     fn header_size(&self) -> usize {
@@ -10,7 +11,7 @@ pub trait Encoder<T: Sized> {
     }
 
     fn encode_to_fixed<const N: usize>(&self, field_offset: usize) -> ([u8; N], usize) {
-        let mut buffer_encoder = FixedEncoder::<N>::new(Self::HEADER_SIZE);
+        let mut buffer_encoder = FixedEncoder::<E, N>::new(Self::HEADER_SIZE);
         self.encode(&mut buffer_encoder, field_offset);
         buffer_encoder.finalize()
     }
@@ -20,22 +21,27 @@ pub trait Encoder<T: Sized> {
         buffer_encoder.finalize()
     }
 
-    fn encode<W: WritableBuffer>(&self, encoder: &mut W, field_offset: usize);
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize);
 
     fn decode_header(
-        decoder: &mut BufferDecoder,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut T,
     ) -> (usize, usize);
 
-    fn decode_body(decoder: &mut BufferDecoder, field_offset: usize, result: &mut T) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut T) {
         Self::decode_header(decoder, field_offset, result);
     }
 }
 
-pub struct FieldEncoder<T: Sized + Encoder<T>, const FIELD_OFFSET: usize>(PhantomData<T>);
+pub struct FieldEncoder<E: ByteOrder, T: Sized + Encoder<E, T>, const FIELD_OFFSET: usize>(
+    PhantomData<E>,
+    PhantomData<T>,
+);
 
-impl<T: Sized + Encoder<T>, const FIELD_OFFSET: usize> FieldEncoder<T, FIELD_OFFSET> {
+impl<E: ByteOrder, T: Sized + Encoder<E, T>, const FIELD_OFFSET: usize>
+    FieldEncoder<E, T, FIELD_OFFSET>
+{
     pub const FIELD_OFFSET: usize = FIELD_OFFSET;
     pub const FIELD_SIZE: usize = T::HEADER_SIZE;
 

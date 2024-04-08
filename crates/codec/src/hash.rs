@@ -1,15 +1,19 @@
 use crate::{buffer::WritableBuffer, BufferDecoder, BufferEncoder, Encoder};
 use alloc::vec::Vec;
+use byteorder::ByteOrder;
 use core::hash::Hash;
 use hashbrown::{HashMap, HashSet};
 
-impl<K: Default + Sized + Encoder<K> + Eq + Hash + Ord, V: Default + Sized + Encoder<V>>
-    Encoder<HashMap<K, V>> for HashMap<K, V>
+impl<
+        E: ByteOrder,
+        K: Default + Sized + Encoder<E, K> + Eq + Hash + Ord,
+        V: Default + Sized + Encoder<E, V>,
+    > Encoder<E, HashMap<K, V>> for HashMap<K, V>
 {
     // length + keys (bytes) + values (bytes)
     const HEADER_SIZE: usize = 4 + 8 + 8;
 
-    fn encode<W: WritableBuffer>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure keys & values are sorted
@@ -30,7 +34,7 @@ impl<K: Default + Sized + Encoder<K> + Eq + Hash + Ord, V: Default + Sized + Enc
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut HashMap<K, V>,
     ) -> (usize, usize) {
@@ -44,7 +48,11 @@ impl<K: Default + Sized + Encoder<K> + Eq + Hash + Ord, V: Default + Sized + Enc
         (keys_offset, keys_length + values_length)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder, field_offset: usize, result: &mut HashMap<K, V>) {
+    fn decode_body(
+        decoder: &mut BufferDecoder<E>,
+        field_offset: usize,
+        result: &mut HashMap<K, V>,
+    ) {
         // decode length, keys and values
         let length = decoder.read_u32(field_offset) as usize;
         let (key_bytes, value_bytes) = decoder.read_bytes2(field_offset + 4, field_offset + 12);
@@ -67,11 +75,13 @@ impl<K: Default + Sized + Encoder<K> + Eq + Hash + Ord, V: Default + Sized + Enc
     }
 }
 
-impl<T: Default + Sized + Encoder<T> + Eq + Hash + Ord> Encoder<HashSet<T>> for HashSet<T> {
+impl<E: ByteOrder, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord> Encoder<E, HashSet<T>>
+    for HashSet<T>
+{
     // length + keys (bytes)
     const HEADER_SIZE: usize = 4 + 8;
 
-    fn encode<W: WritableBuffer>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure set is sorted
@@ -86,7 +96,7 @@ impl<T: Default + Sized + Encoder<T> + Eq + Hash + Ord> Encoder<HashSet<T>> for 
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut HashSet<T>,
     ) -> (usize, usize) {
@@ -98,7 +108,7 @@ impl<T: Default + Sized + Encoder<T> + Eq + Hash + Ord> Encoder<HashSet<T>> for 
         (value_offset, value_length)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder, field_offset: usize, result: &mut HashSet<T>) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut HashSet<T>) {
         // decode length, keys and values
         let length = decoder.read_u32(field_offset) as usize;
         let value_bytes = decoder.read_bytes(field_offset + 4);

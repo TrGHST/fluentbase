@@ -1,35 +1,37 @@
+use byteorder::ByteOrder;
+
 #[macro_export]
 macro_rules! derive_header_size {
     () => (0);
-    ($val:ident: $typ:ty) => {
-        <$typ as $crate::Encoder<$typ>>::HEADER_SIZE
+    ($endianness:ident, $val:ident: $typ:ty) => {
+        <$typ as $crate::Encoder<E, $typ>>::HEADER_SIZE
     };
-    ($val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
-        $crate::derive_header_size!($val_x:$typ_x) + $crate::derive_header_size!($($val_y:$typ_y),+)
+    ($endianness:ident, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
+        $crate::derive_header_size!($endianness, $val_x:$typ_x) + $crate::derive_header_size!($endianness, $($val_y:$typ_y),+)
     };
 }
 #[macro_export]
 macro_rules! derive_encode {
     () => ();
-    ($self:expr, $encoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        $self.$val.encode($encoder, $field_offset)
+    ($endianness:ident, $self:expr, $encoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
+        $self.$val.encode($encoder, $field_offset);
     };
-    ($self:expr, $encoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
-        $crate::derive_encode!($self, $encoder, $field_offset, $val_x:$typ_x);
-        $field_offset += $crate::derive_header_size!($val_x:$typ_x);
-        $crate::derive_encode!($self, $encoder, $field_offset, $($val_y:$typ_y),+)
+    ($endianness:ident, $self:expr, $encoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
+        $crate::derive_encode!($endianness, $self, $encoder, $field_offset, $val_x:$typ_x);
+        $field_offset += $crate::derive_header_size!($endianness, $val_x:$typ_x);
+        $crate::derive_encode!($endianness, $self, $encoder, $field_offset, $($val_y:$typ_y),+)
     };
 }
 #[macro_export]
 macro_rules! derive_decode {
     () => ();
-    ($self:expr, $decoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        <$typ as $crate::Encoder<$typ>>::decode_body($decoder, $field_offset, &mut $self.$val)
+    ($endianness:ident, $self:expr, $decoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
+        <$typ as $crate::Encoder<$endianness, $typ>>::decode_body($decoder, $field_offset, &mut $self.$val);
     };
-    ($self:expr, $decoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
-        $crate::derive_decode!($self, $decoder, $field_offset, $val_x:$typ_x);
-        $field_offset += $crate::derive_header_size!($val_x:$typ_x);
-        $crate::derive_decode!($self, $decoder, $field_offset, $($val_y:$typ_y),+)
+    ($endianness:ident, $self:expr, $decoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
+        $crate::derive_decode!($endianness, $self, $decoder, $field_offset, $val_x:$typ_x);
+        $field_offset += $crate::derive_header_size!($endianness, $val_x:$typ_x);
+        $crate::derive_decode!($endianness, $self, $decoder, $field_offset, $($val_y:$typ_y),+)
     };
 }
 #[macro_export]
@@ -40,13 +42,13 @@ macro_rules! derive_types {
         paste::paste! {
             type [<$val_head:camel>];
         }
-        $crate::derive_types!(@typ $field_offset + <$typ_head as $crate::Encoder<$typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
+        $crate::derive_types!(@typ $field_offset + <$typ_head as $crate::Encoder<::byteorder::LittleEndian, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
     (@def $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
         paste::paste! {
-            type [<$val_head:camel>] = $crate::FieldEncoder<$typ_head, { $field_offset }>;
+            type [<$val_head:camel>] = $crate::FieldEncoder<::byteorder::LittleEndian, $typ_head, { $field_offset }>;
         }
-        $crate::derive_types!(@def $field_offset + <$typ_head as $crate::Encoder<$typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
+        $crate::derive_types!(@def $field_offset + <$typ_head as $crate::Encoder<::byteorder::LittleEndian, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
 }
 
@@ -57,21 +59,21 @@ macro_rules! define_codec_struct {
         pub struct $struct_type {
             $(pub $element: $ty),*
         }
-        impl $crate::Encoder<$struct_type> for $struct_type {
-            const HEADER_SIZE: usize = $crate::derive_header_size!($($element:$ty),*);
-            fn encode<W: $crate::WritableBuffer>(&self, encoder: &mut W, mut field_offset: usize) {
-                $crate::derive_encode!(self, encoder, field_offset, $($element:$ty),*);
+        impl<E: ::byteorder::ByteOrder> $crate::Encoder<E, $struct_type> for $struct_type {
+            const HEADER_SIZE: usize = $crate::derive_header_size!(E, $($element:$ty),*);
+            fn encode<W: $crate::WritableBuffer<E>>(&self, encoder: &mut W, mut field_offset: usize) {
+                $crate::derive_encode!(E, self, encoder, field_offset, $($element:$ty),*);
             }
-            fn decode_header(decoder: &mut $crate::BufferDecoder, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
-                $crate::derive_decode!(result, decoder, field_offset, $($element:$ty),*);
+            fn decode_header(decoder: &mut $crate::BufferDecoder<E>, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
+                $crate::derive_decode!(E, result, decoder, field_offset, $($element:$ty),*);
                 (0, 0)
             }
         }
         impl From<Vec<u8>> for $struct_type {
             fn from(value: Vec<u8>) -> Self {
                 let mut result = Self::default();
-                let mut buffer_decoder = $crate::BufferDecoder::new(value.as_slice());
-                <$struct_type as $crate::Encoder<$struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
+                let mut buffer_decoder = $crate::BufferDecoder::<::byteorder::LittleEndian>::new(value.as_slice());
+                <$struct_type as $crate::Encoder<::byteorder::LittleEndian, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
                 result
             }
         }
@@ -89,6 +91,7 @@ macro_rules! define_codec_struct {
 #[cfg(test)]
 mod tests {
     use crate::{BufferDecoder, BufferEncoder, Encoder};
+    use byteorder::LittleEndian;
     use hashbrown::HashMap;
 
     define_codec_struct! {
@@ -106,14 +109,20 @@ mod tests {
             b: 20,
             c: 3,
         };
-        assert_eq!(SimpleType::HEADER_SIZE, 8 + 4 + 2);
+        assert_eq!(
+            <SimpleType as Encoder<LittleEndian, SimpleType>>::HEADER_SIZE,
+            8 + 4 + 2
+        );
         let encoded_value = {
-            let mut buffer_encoder = BufferEncoder::new(SimpleType::HEADER_SIZE, None);
+            let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
+                <SimpleType as Encoder<LittleEndian, SimpleType>>::HEADER_SIZE,
+                None,
+            );
             value0.encode(&mut buffer_encoder, 0);
             buffer_encoder.finalize()
         };
         println!("{}", hex::encode(&encoded_value));
-        let mut buffer_decoder = BufferDecoder::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
         SimpleType::decode_body(&mut buffer_decoder, 0, &mut value1);
         assert_eq!(value0, value1);
@@ -142,7 +151,8 @@ mod tests {
         assert_eq!(<SimpleType as ISimpleType>::B::FIELD_SIZE, 4);
         assert_eq!(<SimpleType as ISimpleType>::C::FIELD_SIZE, 2);
         // encode entire struct
-        let encoded_value = value.encode_to_vec(0);
+        let encoded_value =
+            <SimpleType as Encoder<LittleEndian, SimpleType>>::encode_to_vec(&value, 0);
         let mut encoded_value = encoded_value.as_slice();
         // decode only field `a`
         {
@@ -191,16 +201,23 @@ mod tests {
             )]),
         };
         assert_eq!(
-            ComplicatedType::HEADER_SIZE,
-            Vec::<SimpleType>::HEADER_SIZE + HashMap::<u32, SimpleType>::HEADER_SIZE
+            <ComplicatedType as Encoder<LittleEndian, ComplicatedType>>::HEADER_SIZE,
+            <Vec<SimpleType> as Encoder<LittleEndian, Vec<SimpleType>>>::HEADER_SIZE
+                + <HashMap::<u32, SimpleType> as Encoder<
+                    LittleEndian,
+                    HashMap::<u32, SimpleType>,
+                >>::HEADER_SIZE
         );
         let encoded_value = {
-            let mut buffer_encoder = BufferEncoder::new(ComplicatedType::HEADER_SIZE, None);
+            let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
+                <ComplicatedType as Encoder<LittleEndian, ComplicatedType>>::HEADER_SIZE,
+                None,
+            );
             value0.encode(&mut buffer_encoder, 0);
             buffer_encoder.finalize()
         };
         println!("{}", hex::encode(&encoded_value));
-        let mut buffer_decoder = BufferDecoder::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
         ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
         assert_eq!(value0, value1);

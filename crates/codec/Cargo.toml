@@ -30,3 +30,4 @@ std = [
     "alloy-primitives/std",
     "serde/std",
 ]
+big_endian = []

@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::ByteOrder;
 use paste::paste;
+use std::marker::PhantomData;
 
-pub trait WritableBuffer {
+pub trait WritableBuffer<E: ByteOrder> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
     fn write_u8(&mut self, field_offset: usize, value: u8) -> usize;
     fn write_i16(&mut self, field_offset: usize, value: i16) -> usize;
@@ -14,29 +15,31 @@ pub trait WritableBuffer {
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize;
 }
 
-macro_rules! encode_le_int {
-    ($typ:ty) => {
+macro_rules! impl_byte_writer {
+    ($typ:ty, $endianness:ident) => {
         paste! {
             fn [<write_ $typ>](&mut self, field_offset: usize, value: $typ) -> usize {
-                LittleEndian::[<write_ $typ>](&mut self.buffer[field_offset..], value);
+                $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
                 core::mem::size_of::<$typ>()
             }
         }
     };
 }
 
-pub struct FixedEncoder<const N: usize> {
+pub struct FixedEncoder<E, const N: usize> {
     header_length: usize,
     body_length: usize,
     buffer: [u8; N],
+    _phantom_data: PhantomData<E>,
 }
 
-impl<const N: usize> FixedEncoder<N> {
+impl<E, const N: usize> FixedEncoder<E, N> {
     pub fn new(header_length: usize) -> Self {
         Self {
             header_length,
             body_length: 0,
             buffer: [0; N],
+            _phantom_data: Default::default(),
         }
     }
 
@@ -56,7 +59,7 @@ impl<const N: usize> FixedEncoder<N> {
     }
 }
 
-impl<const N: usize> WritableBuffer for FixedEncoder<N> {
+impl<E: ByteOrder, const N: usize> WritableBuffer<E> for FixedEncoder<E, N> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize {
         self.buffer[field_offset] = value as u8;
         1
@@ -66,19 +69,27 @@ impl<const N: usize> WritableBuffer for FixedEncoder<N> {
         1
     }
 
-    encode_le_int!(u16);
-    encode_le_int!(i16);
-    encode_le_int!(u32);
-    encode_le_int!(i32);
-    encode_le_int!(u64);
-    encode_le_int!(i64);
+    impl_byte_writer!(u16, E);
+    impl_byte_writer!(i16, E);
+    impl_byte_writer!(u32, E);
+    impl_byte_writer!(i32, E);
+    impl_byte_writer!(u64, E);
+    impl_byte_writer!(i64, E);
 
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.len();
         let data_length = bytes.len();
         // write header with data offset and length
-        self.write_u32(field_offset + 0, data_offset as u32);
-        self.write_u32(field_offset + 4, data_length as u32);
+        <FixedEncoder<E, N> as WritableBuffer<E>>::write_u32(
+            self,
+            field_offset + 0,
+            data_offset as u32,
+        );
+        <FixedEncoder<E, N> as WritableBuffer<E>>::write_u32(
+            self,
+            field_offset + 4,
+            data_length as u32,
+        );
         // write bytes to the end of the buffer
         self.buffer[data_offset..(data_offset + data_length)].copy_from_slice(bytes);
         self.body_length += bytes.len();
@@ -87,15 +98,19 @@ impl<const N: usize> WritableBuffer for FixedEncoder<N> {
 }
 
 #[derive(Default)]
-pub struct BufferEncoder {
+pub struct BufferEncoder<E> {
     buffer: Vec<u8>,
+    _phantom_data: PhantomData<E>,
 }
 
-impl BufferEncoder {
+impl<E: ByteOrder> BufferEncoder<E> {
     pub fn new(header_length: usize, data_length: Option<usize>) -> Self {
         let mut buffer = Vec::with_capacity(header_length + data_length.unwrap_or(0));
         buffer.resize(header_length, 0);
-        Self { buffer }
+        Self {
+            buffer,
+            _phantom_data: Default::default(),
+        }
     }
 
     pub fn finalize(self) -> Vec<u8> {
@@ -103,7 +118,7 @@ impl BufferEncoder {
     }
 }
 
-impl WritableBuffer for BufferEncoder {
+impl<E: ByteOrder> WritableBuffer<E> for BufferEncoder<E> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize {
         self.buffer[field_offset] = value as u8;
         1
@@ -113,12 +128,12 @@ impl WritableBuffer for BufferEncoder {
         1
     }
 
-    encode_le_int!(u16);
-    encode_le_int!(i16);
-    encode_le_int!(u32);
-    encode_le_int!(i32);
-    encode_le_int!(u64);
-    encode_le_int!(i64);
+    impl_byte_writer!(u16, E);
+    impl_byte_writer!(i16, E);
+    impl_byte_writer!(u32, E);
+    impl_byte_writer!(i32, E);
+    impl_byte_writer!(u64, E);
+    impl_byte_writer!(i64, E);
 
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.buffer.len();
@@ -133,23 +148,27 @@ impl WritableBuffer for BufferEncoder {
 }
 
 #[derive(Default)]
-pub struct BufferDecoder<'a> {
+pub struct BufferDecoder<'a, E: ByteOrder> {
     buffer: &'a [u8],
+    _phantom_data: PhantomData<E>,
 }
 
-macro_rules! decode_le_int {
-    ($typ:ty) => {
+macro_rules! impl_byte_reader {
+    ($typ:ty, $endianness:ident) => {
         paste! {
             pub fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
-                LittleEndian::[<read_ $typ>](&self.buffer[field_offset..])
+                $endianness::[<read_ $typ>](&self.buffer[field_offset..])
             }
         }
     };
 }
 
-impl<'a> BufferDecoder<'a> {
+impl<'a, E: ByteOrder> BufferDecoder<'a, E> {
     pub fn new(input: &'a [u8]) -> Self {
-        Self { buffer: input }
+        Self {
+            buffer: input,
+            _phantom_data: Default::default(),
+        }
     }
 
     pub fn read_i8(&mut self, field_offset: usize) -> i8 {
@@ -159,12 +178,12 @@ impl<'a> BufferDecoder<'a> {
         self.buffer[field_offset]
     }
 
-    decode_le_int!(i16);
-    decode_le_int!(u16);
-    decode_le_int!(i32);
-    decode_le_int!(u32);
-    decode_le_int!(i64);
-    decode_le_int!(u64);
+    impl_byte_reader!(i16, E);
+    impl_byte_reader!(u16, E);
+    impl_byte_reader!(i32, E);
+    impl_byte_reader!(u32, E);
+    impl_byte_reader!(i64, E);
+    impl_byte_reader!(u64, E);
 
     pub fn read_bytes_header(&self, field_offset: usize) -> (usize, usize) {
         let bytes_offset = self.read_u32(field_offset + 0) as usize;
@@ -188,6 +207,7 @@ impl<'a> BufferDecoder<'a> {
 #[cfg(test)]
 mod test {
     use crate::buffer::{BufferDecoder, BufferEncoder, FixedEncoder, WritableBuffer};
+    use byteorder::LittleEndian;
 
     #[test]
     fn test_simple_encoding() {
@@ -202,7 +222,7 @@ mod test {
             c: 3,
         };
         let buffer = {
-            let mut buffer = BufferEncoder::new(4 + 2 + 8, None);
+            let mut buffer = BufferEncoder::<LittleEndian>::new(4 + 2 + 8, None);
             let mut offset = 0;
             offset += buffer.write_u32(offset, test.a);
             offset += buffer.write_u16(offset, test.b);
@@ -210,7 +230,7 @@ mod test {
             buffer.finalize()
         };
         println!("{}", hex::encode(&buffer));
-        let decoder = BufferDecoder::new(buffer.as_slice());
+        let decoder = BufferDecoder::<LittleEndian>::new(buffer.as_slice());
         assert_eq!(decoder.read_u32(0), 100);
         assert_eq!(decoder.read_u16(4), 20);
         assert_eq!(decoder.read_u64(6), 3);
@@ -229,7 +249,7 @@ mod test {
             c: 3,
         };
         let buffer = {
-            let mut buffer = FixedEncoder::<1024>::new(4 + 2 + 8);
+            let mut buffer = FixedEncoder::<LittleEndian, 1024>::new(4 + 2 + 8);
             let mut offset = 0;
             offset += buffer.write_u32(offset, test.a);
             offset += buffer.write_u16(offset, test.b);
@@ -237,7 +257,7 @@ mod test {
             buffer.bytes().to_vec()
         };
         println!("{}", hex::encode(&buffer));
-        let decoder = BufferDecoder::new(&buffer);
+        let decoder = BufferDecoder::<LittleEndian>::new(&buffer);
         assert_eq!(decoder.read_u32(0), 100);
         assert_eq!(decoder.read_u16(4), 20);
         assert_eq!(decoder.read_u64(6), 3);
@@ -246,7 +266,7 @@ mod test {
     #[test]
     fn test_fixed_array() {
         let buffer = {
-            let mut buffer = FixedEncoder::<1024>::new(4 + 8 + 4 + 8 + 4);
+            let mut buffer = FixedEncoder::<LittleEndian, 1024>::new(4 + 8 + 4 + 8 + 4);
             buffer.write_u32(0, 0xbadcab1e);
             buffer.write_bytes(4, &[0, 1, 2, 3, 4]);
             buffer.write_u32(12, 0xdeadbeef);
@@ -255,7 +275,7 @@ mod test {
             buffer.bytes().to_vec()
         };
         println!("{}", hex::encode(&buffer));
-        let decoder = BufferDecoder::new(buffer.as_slice());
+        let decoder = BufferDecoder::<LittleEndian>::new(buffer.as_slice());
         assert_eq!(decoder.read_u32(0), 0xbadcab1e);
         assert_eq!(decoder.read_bytes(4).to_vec(), vec![0, 1, 2, 3, 4]);
         assert_eq!(decoder.read_u32(12), 0xdeadbeef);
@@ -266,7 +286,7 @@ mod test {
     #[test]
     fn test_bytes_array() {
         let buffer = {
-            let mut buffer = BufferEncoder::new(4 + 8 + 4 + 8 + 4, None);
+            let mut buffer = BufferEncoder::<LittleEndian>::new(4 + 8 + 4 + 8 + 4, None);
             buffer.write_u32(0, 0xbadcab1e);
             buffer.write_bytes(4, &[0, 1, 2, 3, 4]);
             buffer.write_u32(12, 0xdeadbeef);
@@ -275,7 +295,7 @@ mod test {
             buffer.finalize()
         };
         println!("{}", hex::encode(&buffer));
-        let decoder = BufferDecoder::new(buffer.as_slice());
+        let decoder = BufferDecoder::<LittleEndian>::new(buffer.as_slice());
         assert_eq!(decoder.read_u32(0), 0xbadcab1e);
         assert_eq!(decoder.read_bytes(4).to_vec(), vec![0, 1, 2, 3, 4]);
         assert_eq!(decoder.read_u32(12), 0xdeadbeef);

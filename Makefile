@@ -9,4 +9,4 @@ build:
 .PHONY: test
 test:
 	clear
-	cargo test --no-fail-fast -q
+	cargo test --no-fail-fast
