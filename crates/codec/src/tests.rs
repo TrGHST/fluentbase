@@ -2,7 +2,35 @@ use alloy_primitives::Bytes;
 use byteorder::{BE, LE};
 use hashbrown::{HashMap, HashSet};
 
-use super::{BufferDecoder, BufferEncoder, Encoder};
+use crate::{define_codec_struct, BufferDecoder, Encoder};
+
+define_codec_struct! {
+    pub struct ContractOutput {
+        return_data: Bytes,
+        logs: Vec<ContractOutput>,
+    }
+}
+define_codec_struct! {
+    pub struct ContractOutputNoLogs {
+        return_data: Bytes,
+        logs: EmptyVec,
+    }
+}
+
+#[test]
+fn test_empty_encode() {
+    let mut input = ContractOutputNoLogs {
+        return_data: Bytes::copy_from_slice("Hello, World".as_bytes()),
+        logs: Default::default(),
+    };
+    let buffer =
+        <ContractOutputNoLogs as Encoder<LE, ContractOutputNoLogs>>::encode_to_vec(&mut input, 0);
+    let mut buffer_decoder = BufferDecoder::<LE>::new(&buffer);
+    let mut output = ContractOutput::default();
+    ContractOutput::decode_body(&mut buffer_decoder, 0, &mut output);
+    assert_eq!(input.return_data, output.return_data);
+    assert_eq!(output.logs, vec![]);
+}
 
 #[test]
 fn test_i16_le() {
@@ -396,14 +424,14 @@ fn test_static_array_of_arrays() {
 }
 
 #[test]
-fn test_option() {
+fn test_option_le() {
     type T = Option<u32>;
     let value1: T = Some(0x7bu32);
     let value2: T = None;
     let result = {
         // TODO doesnt work. bug?
         // let mut buffer_encoder =
-        //     BufferEncoder::<Endianness1>::new(<T as Encoder<Endianness1, T>>::HEADER_SIZE, None);
+        //     BufferEncoder::<Endianness1>::new(<T as Encoder<LE, T>>::HEADER_SIZE, None);
         // assert_eq!(<T as Encoder<Endianness1, T>>::HEADER_SIZE, 5 + 5);
         let mut buffer_encoder = BufferEncoder::<LE>::new(5 + 5, None);
         value1.encode(&mut buffer_encoder, 0);

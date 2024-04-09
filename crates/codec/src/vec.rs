@@ -13,13 +13,15 @@ use byteorder::ByteOrder;
 ///
 /// We don't encode empty vectors, instead we store 0 as length,
 /// it helps to reduce empty vector size from 12 to 4 bytes.
-impl<E: ByteOrder, T: Default + Sized + Encoder<E, T>> Encoder<E, Vec<T>> for Vec<T> {
+impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T>> Encoder<E, A, Vec<T>>
+    for Vec<T>
+{
     // u32: length + values (bytes)
     const HEADER_SIZE: usize = core::mem::size_of::<u32>() * 3;
 
-    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u32(field_offset, self.len() as u32);
-        let mut value_encoder = BufferEncoder::new(T::HEADER_SIZE * self.len(), None);
+        let mut value_encoder = BufferEncoder::<E, A>::new(T::HEADER_SIZE * self.len(), None);
         for (i, obj) in self.iter().enumerate() {
             obj.encode(&mut value_encoder, T::HEADER_SIZE * i);
         }
@@ -27,7 +29,7 @@ impl<E: ByteOrder, T: Default + Sized + Encoder<E, T>> Encoder<E, Vec<T>> for Ve
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E>,
+        decoder: &mut BufferDecoder<E, A>,
         field_offset: usize,
         result: &mut Vec<T>,
     ) -> (usize, usize) {
@@ -39,7 +41,7 @@ impl<E: ByteOrder, T: Default + Sized + Encoder<E, T>> Encoder<E, Vec<T>> for Ve
         (offset, length)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut Vec<T>) {
+    fn decode_body(decoder: &mut BufferDecoder<E, A>, field_offset: usize, result: &mut Vec<T>) {
         let input_len = decoder.read_u32(field_offset) as usize;
         if input_len == 0 {
             result.clear();

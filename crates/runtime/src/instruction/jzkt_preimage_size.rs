@@ -1,4 +1,5 @@
 use crate::RuntimeContext;
+use bytes::Bytes;
 use fluentbase_types::ExitCode;
 use rwasm::{core::Trap, Caller};
 

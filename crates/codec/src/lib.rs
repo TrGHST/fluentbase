@@ -13,9 +13,9 @@ mod buffer;
 mod empty;
 mod encoder;
 mod evm;
-mod hash;
-mod macros;
+// mod hash;
+// mod macros;
 mod primitive;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 mod vec;

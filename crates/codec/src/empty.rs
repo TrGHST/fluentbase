@@ -1,63 +1,29 @@
+use crate::encoder::HEADER_ITEM_SIZE_DEFAULT;
 use crate::{BufferDecoder, Encoder, WritableBuffer};
 use byteorder::ByteOrder;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct EmptyVec;
+pub struct EmptyVec<const A: usize>;
 
-impl<E: ByteOrder> Encoder<E, EmptyVec> for EmptyVec {
-    const HEADER_SIZE: usize = 12;
+impl<E: ByteOrder, const A: usize> Encoder<E, A, EmptyVec<A>> for EmptyVec<A> {
+    const HEADER_SIZE: usize = A * 3;
 
-    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         // first 4 bytes are number of elements
         encoder.write_u32(field_offset, 0);
         // remaining 4+4 are offset and length
-        encoder.write_bytes(field_offset + 4, &[]);
+        let header_item_size = if A != 0 { A } else { HEADER_ITEM_SIZE_DEFAULT };
+        encoder.write_bytes(field_offset + header_item_size, &[]);
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E>,
+        decoder: &mut BufferDecoder<E, A>,
         field_offset: usize,
-        _result: &mut EmptyVec,
+        _result: &mut EmptyVec<A>,
     ) -> (usize, usize) {
         let count = decoder.read_u32(field_offset);
         debug_assert_eq!(count, 0);
-        decoder.read_bytes_header(field_offset + 4)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{define_codec_struct, BufferDecoder, EmptyVec, Encoder};
-    use alloy_primitives::Bytes;
-    use byteorder::LittleEndian;
-
-    define_codec_struct! {
-        pub struct ContractOutput {
-            return_data: Bytes,
-            logs: Vec<ContractOutput>,
-        }
-    }
-    define_codec_struct! {
-        pub struct ContractOutputNoLogs {
-            return_data: Bytes,
-            logs: EmptyVec,
-        }
-    }
-
-    #[test]
-    fn test_empty_encode() {
-        let mut input = ContractOutputNoLogs {
-            return_data: Bytes::copy_from_slice("Hello, World".as_bytes()),
-            logs: Default::default(),
-        };
-        let buffer =
-            <ContractOutputNoLogs as Encoder<LittleEndian, ContractOutputNoLogs>>::encode_to_vec(
-                &mut input, 0,
-            );
-        let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(&buffer);
-        let mut output = ContractOutput::default();
-        ContractOutput::decode_body(&mut buffer_decoder, 0, &mut output);
-        assert_eq!(input.return_data, output.return_data);
-        assert_eq!(output.logs, vec![]);
+        let header_item_size = if A != 0 { A } else { HEADER_ITEM_SIZE_DEFAULT };
+        decoder.read_bytes_header(field_offset + header_item_size)
     }
 }

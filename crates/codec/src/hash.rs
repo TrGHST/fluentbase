@@ -6,27 +6,28 @@ use hashbrown::{HashMap, HashSet};
 
 impl<
         E: ByteOrder,
-        K: Default + Sized + Encoder<E, K> + Eq + Hash + Ord,
-        V: Default + Sized + Encoder<E, V>,
-    > Encoder<E, HashMap<K, V>> for HashMap<K, V>
+        const A: usize,
+        K: Default + Sized + Encoder<E, K, A> + Eq + Hash + Ord,
+        V: Default + Sized + Encoder<E, V, A>,
+    > Encoder<E, HashMap<K, V>, A> for HashMap<K, V>
 {
     // length + keys (bytes) + values (bytes)
     const HEADER_SIZE: usize = 4 + 8 + 8;
 
-    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure keys & values are sorted
         let mut entries: Vec<_> = self.iter().collect();
         entries.sort_by(|a, b| a.0.cmp(b.0));
         // encode keys
-        let mut key_encoder = BufferEncoder::new(K::HEADER_SIZE * self.len(), None);
+        let mut key_encoder = BufferEncoder::<E, A>::new(K::HEADER_SIZE * self.len(), None);
         for (i, obj) in entries.iter().enumerate() {
             obj.0.encode(&mut key_encoder, K::HEADER_SIZE * i);
         }
         encoder.write_bytes(field_offset + 4, key_encoder.finalize().as_slice());
         // encode values
-        let mut value_encoder = BufferEncoder::new(V::HEADER_SIZE * self.len(), None);
+        let mut value_encoder = BufferEncoder::<E, A>::new(V::HEADER_SIZE * self.len(), None);
         for (i, obj) in entries.iter().enumerate() {
             obj.1.encode(&mut value_encoder, V::HEADER_SIZE * i);
         }
@@ -34,7 +35,7 @@ impl<
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E>,
+        decoder: &mut BufferDecoder<E, A>,
         field_offset: usize,
         result: &mut HashMap<K, V>,
     ) -> (usize, usize) {
@@ -49,7 +50,7 @@ impl<
     }
 
     fn decode_body(
-        decoder: &mut BufferDecoder<E>,
+        decoder: &mut BufferDecoder<E, A>,
         field_offset: usize,
         result: &mut HashMap<K, V>,
     ) {
@@ -75,20 +76,20 @@ impl<
     }
 }
 
-impl<E: ByteOrder, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord> Encoder<E, HashSet<T>>
-    for HashSet<T>
+impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord>
+    Encoder<E, HashSet<T>, A> for HashSet<T>
 {
     // length + keys (bytes)
     const HEADER_SIZE: usize = 4 + 8;
 
-    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure set is sorted
         let mut entries: Vec<_> = self.iter().collect();
         entries.sort();
         // encode values
-        let mut value_encoder = BufferEncoder::new(T::HEADER_SIZE * self.len(), None);
+        let mut value_encoder = BufferEncoder::<E, A>::new(T::HEADER_SIZE * self.len(), None);
         for (i, obj) in entries.iter().enumerate() {
             obj.encode(&mut value_encoder, T::HEADER_SIZE * i);
         }
@@ -96,7 +97,7 @@ impl<E: ByteOrder, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord> Encoder
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E>,
+        decoder: &mut BufferDecoder<E, A>,
         field_offset: usize,
         result: &mut HashSet<T>,
     ) -> (usize, usize) {
@@ -108,7 +109,11 @@ impl<E: ByteOrder, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord> Encoder
         (value_offset, value_length)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut HashSet<T>) {
+    fn decode_body(
+        decoder: &mut BufferDecoder<E, A>,
+        field_offset: usize,
+        result: &mut HashSet<T>,
+    ) {
         // decode length, keys and values
         let length = decoder.read_u32(field_offset) as usize;
         let value_bytes = decoder.read_bytes(field_offset + 4);
