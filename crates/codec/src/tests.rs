@@ -1,35 +1,49 @@
-use super::{BufferDecoder, BufferEncoder, Encoder};
 use alloy_primitives::Bytes;
-use byteorder::LittleEndian;
+use byteorder::{BE, LE};
 use hashbrown::{HashMap, HashSet};
 
+use super::{BufferDecoder, BufferEncoder, Encoder};
+
 #[test]
-fn test_i16() {
+fn test_i16_le() {
     let values: i16 = 12345;
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <i16 as Encoder<LittleEndian, i16>>::HEADER_SIZE,
-            None,
-        );
+        let mut buffer_encoder =
+            BufferEncoder::<LE>::new(<i16 as Encoder<LE, i16>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     let result_encoded = hex::encode(&result);
     assert_eq!("3930", result_encoded);
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     <i16>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
 }
 
 #[test]
-fn test_vec() {
+fn test_i16_be() {
+    let values: i16 = 12345;
+    let result = {
+        let mut buffer_encoder =
+            BufferEncoder::<BE>::new(<i16 as Encoder<BE, i16>>::HEADER_SIZE, None);
+        values.encode(&mut buffer_encoder, 0);
+        buffer_encoder.finalize()
+    };
+    let result_encoded = hex::encode(&result);
+    assert_eq!("3039", result_encoded);
+    let mut buffer_decoder = BufferDecoder::<BE>::new(result.as_slice());
+    let mut values2 = Default::default();
+    <i16>::decode_body(&mut buffer_decoder, 0, &mut values2);
+    assert_eq!(values, values2);
+}
+
+#[test]
+fn test_vec_le() {
     let values = vec![0, 1, 2, 3];
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <Vec<i32> as Encoder<LittleEndian, Vec<i32>>>::HEADER_SIZE,
-            None,
-        );
+        let mut buffer_encoder =
+            BufferEncoder::<LE>::new(<Vec<i32> as Encoder<LE, Vec<i32>>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
@@ -47,7 +61,36 @@ fn test_vec() {
         ",
         result_encoded,
     );
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
+    let mut values2 = Default::default();
+    Vec::<i32>::decode_body(&mut buffer_decoder, 0, &mut values2);
+    assert_eq!(values, values2);
+}
+
+#[test]
+fn test_vec_be() {
+    let values = vec![0, 1, 2, 3];
+    let result = {
+        let mut buffer_encoder =
+            BufferEncoder::<BE>::new(<Vec<i32> as Encoder<BE, Vec<i32>>>::HEADER_SIZE, None);
+        values.encode(&mut buffer_encoder, 0);
+        buffer_encoder.finalize()
+    };
+    let result_encoded = hex::encode(&result);
+    println!("{}", result_encoded);
+    assert_eq!(
+        "\
+        00000004\
+        0000000c\
+        00000010\
+        00000000\
+        00000001\
+        00000002\
+        00000003\
+        ",
+        result_encoded,
+    );
+    let mut buffer_decoder = BufferDecoder::<BE>::new(result.as_slice());
     let mut values2 = Default::default();
     Vec::<i32>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -57,28 +100,24 @@ fn test_vec() {
 fn test_bytes() {
     let values = Bytes::from_static("Hello, World".as_bytes());
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <Bytes as Encoder<LittleEndian, Bytes>>::HEADER_SIZE,
-            None,
-        );
+        let mut buffer_encoder =
+            BufferEncoder::<LE>::new(<Bytes as Encoder<LE, Bytes>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     Bytes::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
 }
 
 #[test]
-fn test_nested_vec() {
+fn test_nested_vec_le() {
     let values = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <Vec<i32> as Encoder<LittleEndian, Vec<i32>>>::HEADER_SIZE,
-            None,
-        );
+        let mut buffer_encoder =
+            BufferEncoder::<LE>::new(<Vec<i32> as Encoder<LE, Vec<i32>>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
@@ -116,7 +155,49 @@ fn test_nested_vec() {
         ",
         result_encoded,
     );
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
+    let mut values2 = Default::default();
+    Vec::<Vec<i32>>::decode_body(&mut buffer_decoder, 0, &mut values2);
+    assert_eq!(values, values2);
+}
+
+#[test]
+fn test_nested_vec_be() {
+    let values = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
+    let result = {
+        let mut buffer_encoder =
+            BufferEncoder::<BE>::new(<Vec<i32> as Encoder<BE, Vec<i32>>>::HEADER_SIZE, None);
+        values.encode(&mut buffer_encoder, 0);
+        buffer_encoder.finalize()
+    };
+    let result_encoded = hex::encode(&result);
+    println!("{}", result_encoded);
+    assert_eq!(
+        "\
+        00000003\
+        0000000c\
+        00000048\
+        00000003\
+        00000024\
+        0000000c\
+        00000003\
+        00000030\
+        0000000c\
+        00000003\
+        0000003c\
+        0000000c\
+        00000000\
+        00000001\
+        00000002\
+        00000003\
+        00000004\
+        00000005\
+        00000006\
+        00000007\
+        00000008",
+        result_encoded,
+    );
+    let mut buffer_decoder = BufferDecoder::<BE>::new(result.as_slice());
     let mut values2 = Default::default();
     Vec::<Vec<i32>>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -126,15 +207,13 @@ fn test_nested_vec() {
 fn test_empty_vec() {
     let values: Vec<u32> = vec![];
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <Vec<i32> as Encoder<LittleEndian, Vec<i32>>>::HEADER_SIZE,
-            None,
-        );
+        let mut buffer_encoder =
+            BufferEncoder::<LE>::new(<Vec<i32> as Encoder<LE, Vec<i32>>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     Vec::<u32>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -147,15 +226,15 @@ fn test_map() {
     values.insert(3, 5);
     values.insert(1000, 60);
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <HashMap<i32, i32> as Encoder<LittleEndian, HashMap<i32, i32>>>::HEADER_SIZE,
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <HashMap<i32, i32> as Encoder<LE, HashMap<i32, i32>>>::HEADER_SIZE,
             None,
         );
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     HashMap::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -165,15 +244,15 @@ fn test_map() {
 fn test_set() {
     let values = HashSet::from([1, 2, 3]);
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <HashSet<i32> as Encoder<LittleEndian, HashSet<i32>>>::HEADER_SIZE,
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <HashSet<i32> as Encoder<LE, HashSet<i32>>>::HEADER_SIZE,
             None,
         );
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     HashSet::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -183,8 +262,8 @@ fn test_set() {
 fn test_set_is_sorted() {
     let result1 = {
         let values = HashSet::from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <HashSet<i32> as Encoder<LittleEndian, HashSet<i32>>>::HEADER_SIZE,
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <HashSet<i32> as Encoder<LE, HashSet<i32>>>::HEADER_SIZE,
             None,
         );
         values.encode(&mut buffer_encoder, 0);
@@ -192,8 +271,8 @@ fn test_set_is_sorted() {
     };
     let result2 = {
         let values = HashSet::from([8, 3, 2, 4, 5, 9, 7, 1, 6]);
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <HashSet<i32> as Encoder<LittleEndian, HashSet<i32>>>::HEADER_SIZE,
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <HashSet<i32> as Encoder<LE, HashSet<i32>>>::HEADER_SIZE,
             None,
         );
         values.encode(&mut buffer_encoder, 0);
@@ -209,9 +288,9 @@ fn test_nested_map() {
     values.insert(3, HashMap::new());
     values.insert(1000, HashMap::from([(7, 8), (9, 4)]));
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
             <HashMap<i32, HashMap<i32, i32>> as Encoder<
-                LittleEndian,
+                LE,
                 HashMap<i32, HashMap<i32, i32>>,
             >>::HEADER_SIZE,
             None,
@@ -220,7 +299,7 @@ fn test_nested_map() {
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     HashMap::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -233,15 +312,15 @@ fn test_vector_of_maps() {
     values.push(HashMap::new());
     values.push(HashMap::from([(7, 8), (9, 4)]));
     let result = {
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-            <Vec<HashMap<i32, i32>> as Encoder<LittleEndian, Vec<HashMap<i32, i32>>>>::HEADER_SIZE,
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <Vec<HashMap<i32, i32>> as Encoder<LE, Vec<HashMap<i32, i32>>>>::HEADER_SIZE,
             None,
         );
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     Vec::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -254,19 +333,15 @@ fn test_map_of_vectors() {
     values.insert(vec![3, 1, 2], vec![3, 4, 5]);
     values.insert(vec![0, 1, 6], vec![3, 4, 5]);
     let result = {
-        let mut buffer_encoder =
-            BufferEncoder::<LittleEndian>::new(
-                <HashMap<Vec<i32>, Vec<i32>> as Encoder<
-                    LittleEndian,
-                    HashMap<Vec<i32>, Vec<i32>>,
-                >>::HEADER_SIZE,
-                None,
-            );
+        let mut buffer_encoder = BufferEncoder::<LE>::new(
+            <HashMap<Vec<i32>, Vec<i32>> as Encoder<LE, HashMap<Vec<i32>, Vec<i32>>>>::HEADER_SIZE,
+            None,
+        );
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     HashMap::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -277,13 +352,12 @@ fn test_static_array() {
     type T = [i32; 3];
     let values: T = [1, 2, 3];
     let result = {
-        let mut buffer_encoder =
-            BufferEncoder::<LittleEndian>::new(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, None);
+        let mut buffer_encoder = BufferEncoder::<LE>::new(<T as Encoder<LE, T>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     <[i32; 3]>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -294,13 +368,12 @@ fn test_empty_static_array() {
     type T = [u8; 0];
     let values: T = [];
     let result = {
-        let mut buffer_encoder =
-            BufferEncoder::<LittleEndian>::new(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, None);
+        let mut buffer_encoder = BufferEncoder::<LE>::new(<T as Encoder<LE, T>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("hex: '{}'", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     <[u8; 0]>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -311,13 +384,12 @@ fn test_static_array_of_arrays() {
     type T = [[i32; 3]; 3];
     let values: T = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
     let result = {
-        let mut buffer_encoder =
-            BufferEncoder::<LittleEndian>::new(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, None);
+        let mut buffer_encoder = BufferEncoder::<LE>::new(<T as Encoder<LE, T>>::HEADER_SIZE, None);
         values.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut values2 = Default::default();
     <[[i32; 3]; 3]>::decode_body(&mut buffer_decoder, 0, &mut values2);
     assert_eq!(values, values2);
@@ -331,15 +403,15 @@ fn test_option() {
     let result = {
         // TODO doesnt work. bug?
         // let mut buffer_encoder =
-        //     BufferEncoder::<LittleEndian>::new(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, None);
-        // assert_eq!(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, 5 + 5);
-        let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(5 + 5, None);
+        //     BufferEncoder::<Endianness1>::new(<T as Encoder<Endianness1, T>>::HEADER_SIZE, None);
+        // assert_eq!(<T as Encoder<Endianness1, T>>::HEADER_SIZE, 5 + 5);
+        let mut buffer_encoder = BufferEncoder::<LE>::new(5 + 5, None);
         value1.encode(&mut buffer_encoder, 0);
         value2.encode(&mut buffer_encoder, 5);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut decoded1 = Default::default();
     let mut decoded2 = Default::default();
     Option::<u32>::decode_header(&mut buffer_decoder, 0, &mut decoded1);
@@ -353,13 +425,12 @@ fn test_option_non_primitive() {
     type T = Option<Vec<u32>>;
     let value: T = Some(vec![1, 2, 3]);
     let result = {
-        let mut buffer_encoder =
-            BufferEncoder::<LittleEndian>::new(<T as Encoder<LittleEndian, T>>::HEADER_SIZE, None);
+        let mut buffer_encoder = BufferEncoder::<LE>::new(<T as Encoder<LE, T>>::HEADER_SIZE, None);
         value.encode(&mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
     println!("{}", hex::encode(&result));
-    let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(result.as_slice());
+    let mut buffer_decoder = BufferDecoder::<LE>::new(result.as_slice());
     let mut decoded_value = Default::default();
     Option::<Vec<u32>>::decode_body(&mut buffer_decoder, 0, &mut decoded_value);
     assert_eq!(value, decoded_value);

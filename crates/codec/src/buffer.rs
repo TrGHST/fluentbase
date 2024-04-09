@@ -26,14 +26,14 @@ macro_rules! impl_byte_writer {
     };
 }
 
-pub struct FixedEncoder<E, const N: usize> {
+pub struct FixedEncoder<E: ByteOrder, const N: usize> {
     header_length: usize,
     body_length: usize,
     buffer: [u8; N],
     _phantom_data: PhantomType<E>,
 }
 
-impl<E, const N: usize> FixedEncoder<E, N> {
+impl<E: ByteOrder, const N: usize> FixedEncoder<E, N> {
     pub fn new(header_length: usize) -> Self {
         Self {
             header_length,

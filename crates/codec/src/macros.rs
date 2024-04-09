@@ -91,11 +91,11 @@ macro_rules! define_codec_struct {
 #[cfg(test)]
 mod tests {
     use crate::{BufferDecoder, BufferEncoder, Encoder};
-    use byteorder::LittleEndian;
+    use byteorder::{BigEndian, LittleEndian};
     use hashbrown::HashMap;
 
     define_codec_struct! {
-        pub struct SimpleType {
+        pub struct SimpleTypeU {
             a: u64,
             b: u32,
             c: u16,
@@ -103,19 +103,19 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_type() {
-        let value0 = SimpleType {
+    fn test_simple_type_u() {
+        let value0 = SimpleTypeU {
             a: 100,
             b: 20,
             c: 3,
         };
         assert_eq!(
-            <SimpleType as Encoder<LittleEndian, SimpleType>>::HEADER_SIZE,
+            <SimpleTypeU as Encoder<LittleEndian, SimpleTypeU>>::HEADER_SIZE,
             8 + 4 + 2
         );
         let encoded_value = {
             let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-                <SimpleType as Encoder<LittleEndian, SimpleType>>::HEADER_SIZE,
+                <SimpleTypeU as Encoder<LittleEndian, SimpleTypeU>>::HEADER_SIZE,
                 None,
             );
             value0.encode(&mut buffer_encoder, 0);
@@ -124,52 +124,86 @@ mod tests {
         println!("{}", hex::encode(&encoded_value));
         let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        SimpleType::decode_body(&mut buffer_decoder, 0, &mut value1);
+        SimpleTypeU::decode_body(&mut buffer_decoder, 0, &mut value1);
+        assert_eq!(value0, value1);
+    }
+
+    define_codec_struct! {
+        pub struct SimpleTypeS {
+            a: i64,
+            b: i32,
+            c: i16,
+        }
+    }
+
+    #[test]
+    fn test_simple_type_s() {
+        let value0 = SimpleTypeS {
+            a: -100,
+            b: -20,
+            c: -3,
+        };
+        assert_eq!(
+            <SimpleTypeS as Encoder<BigEndian, SimpleTypeS>>::HEADER_SIZE,
+            8 + 4 + 2
+        );
+        let encoded_value = {
+            let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
+                <SimpleTypeS as Encoder<LittleEndian, SimpleTypeS>>::HEADER_SIZE,
+                None,
+            );
+            value0.encode(&mut buffer_encoder, 0);
+            buffer_encoder.finalize()
+        };
+        println!("{}", hex::encode(&encoded_value));
+        let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(encoded_value.as_slice());
+        let mut value1 = Default::default();
+        SimpleTypeS::decode_body(&mut buffer_decoder, 0, &mut value1);
         assert_eq!(value0, value1);
     }
 
     define_codec_struct! {
         pub struct ComplicatedType {
-            values: Vec<SimpleType>,
+            values: Vec<SimpleTypeU>,
             maps: HashMap<u32, ComplicatedType>,
         }
     }
 
     #[test]
     fn test_decode_specific_field() {
-        let value = SimpleType {
+        let value = SimpleTypeU {
             a: 100,
             b: 20,
             c: 3,
         };
         // check offsets
-        assert_eq!(<SimpleType as ISimpleType>::A::FIELD_OFFSET, 0);
-        assert_eq!(<SimpleType as ISimpleType>::B::FIELD_OFFSET, 8);
-        assert_eq!(<SimpleType as ISimpleType>::C::FIELD_OFFSET, 8 + 4);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_OFFSET, 0);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::B::FIELD_OFFSET, 8);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::C::FIELD_OFFSET, 8 + 4);
         // check sizes
-        assert_eq!(<SimpleType as ISimpleType>::A::FIELD_SIZE, 8);
-        assert_eq!(<SimpleType as ISimpleType>::B::FIELD_SIZE, 4);
-        assert_eq!(<SimpleType as ISimpleType>::C::FIELD_SIZE, 2);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_SIZE, 8);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE, 4);
+        assert_eq!(<SimpleTypeU as ISimpleTypeU>::C::FIELD_SIZE, 2);
         // encode entire struct
         let encoded_value =
-            <SimpleType as Encoder<LittleEndian, SimpleType>>::encode_to_vec(&value, 0);
+            <SimpleTypeU as Encoder<LittleEndian, SimpleTypeU>>::encode_to_vec(&value, 0);
         let mut encoded_value = encoded_value.as_slice();
         // decode only field `a`
         {
             let mut a: u64 = 0;
-            <SimpleType as ISimpleType>::A::decode_field_header(&mut encoded_value, &mut a);
+            <SimpleTypeU as ISimpleTypeU>::A::decode_field_header(&mut encoded_value, &mut a);
             assert_eq!(a, value.a);
         }
         // decode only field `b`
         {
             let mut b: u32 = 0;
-            <SimpleType as ISimpleType>::B::decode_field_header(&mut encoded_value, &mut b);
+            <SimpleTypeU as ISimpleTypeU>::B::decode_field_header(&mut encoded_value, &mut b);
             assert_eq!(b, value.b);
         }
         // decode only field `c`
         {
             let mut c: u16 = 0;
-            <SimpleType as ISimpleType>::C::decode_field_header(&mut encoded_value, &mut c);
+            <SimpleTypeU as ISimpleTypeU>::C::decode_field_header(&mut encoded_value, &mut c);
             assert_eq!(c, value.c);
         }
     }
@@ -178,12 +212,12 @@ mod tests {
     fn test_complicated_type() {
         let value0 = ComplicatedType {
             values: vec![
-                SimpleType {
+                SimpleTypeU {
                     a: 100,
                     b: 20,
                     c: 3,
                 },
-                SimpleType {
+                SimpleTypeU {
                     a: u64::MAX,
                     b: u32::MAX,
                     c: u16::MAX,
@@ -193,8 +227,8 @@ mod tests {
                 7,
                 ComplicatedType {
                     values: vec![
-                        SimpleType { a: 1, b: 2, c: 3 },
-                        SimpleType { a: 4, b: 5, c: 6 },
+                        SimpleTypeU { a: 1, b: 2, c: 3 },
+                        SimpleTypeU { a: 4, b: 5, c: 6 },
                     ],
                     maps: Default::default(),
                 },
@@ -202,10 +236,10 @@ mod tests {
         };
         assert_eq!(
             <ComplicatedType as Encoder<LittleEndian, ComplicatedType>>::HEADER_SIZE,
-            <Vec<SimpleType> as Encoder<LittleEndian, Vec<SimpleType>>>::HEADER_SIZE
-                + <HashMap::<u32, SimpleType> as Encoder<
+            <Vec<SimpleTypeU> as Encoder<LittleEndian, Vec<SimpleTypeU>>>::HEADER_SIZE
+                + <HashMap::<u32, SimpleTypeU> as Encoder<
                     LittleEndian,
-                    HashMap::<u32, SimpleType>,
+                    HashMap::<u32, SimpleTypeU>,
                 >>::HEADER_SIZE
         );
         let encoded_value = {
