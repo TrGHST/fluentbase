@@ -1,10 +1,8 @@
-use byteorder::ByteOrder;
-
 #[macro_export]
 macro_rules! derive_header_size {
     () => (0);
     ($endianness:ty, $alignment:ident, $val:ident: $typ:ty) => {
-        <$typ as $crate::Encoder<E, {$alignment}, $typ>>::HEADER_SIZE
+        <$typ as $crate::Encoder<E, $alignment, $typ>>::HEADER_SIZE
     };
     ($endianness:ty, $alignment:ident, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
         $crate::derive_header_size!($endianness, $alignment, $val_x:$typ_x) + $crate::derive_header_size!($endianness, $alignment, $($val_y:$typ_y),+)
@@ -26,7 +24,7 @@ macro_rules! derive_encode {
 macro_rules! derive_decode {
     () => ();
     ($endianness:ty, $alignment:ident, $self:expr, $decoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        <$typ as $crate::Encoder<$endianness, {$alignment}, $typ>>::decode_body($decoder, $field_offset, &mut $self.$val);
+        <$typ as $crate::Encoder<$endianness, $alignment, $typ>>::decode_body($decoder, $field_offset, &mut $self.$val);
     };
     ($endianness:ty, $alignment:ident, $self:expr, $decoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
         $crate::derive_decode!($endianness, $alignment, $self, $decoder, $field_offset, $val_x:$typ_x);
@@ -42,13 +40,13 @@ macro_rules! derive_types {
         paste::paste! {
             type [<$val_head:camel>];
         }
-        $crate::derive_types!(@typ $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, {$crate::encoder::ALIGNMENT_32}, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
+        $crate::derive_types!(@typ $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, $alignment, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
     (@def $endianness:ty, $alignment:ty, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
         paste::paste! {
-            type [<$val_head:camel>] = $crate::FieldEncoder<::byteorder::BE, {$crate::encoder::ALIGNMENT_32}, $typ_head, { $field_offset }>;
+            type [<$val_head:camel>] = $crate::FieldEncoder<$endianness, $alignment, $typ_head, { $field_offset }>;
         }
-        $crate::derive_types!(@def $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, {$crate::encoder::ALIGNMENT_32}, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
+        $crate::derive_types!(@def $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, $alignment, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
 }
 
@@ -72,17 +70,17 @@ macro_rules! define_codec_struct {
         impl From<Vec<u8>> for $struct_type {
             fn from(value: Vec<u8>) -> Self {
                 let mut result = Self::default();
-                let mut buffer_decoder = $crate::BufferDecoder::<$endianness, {$crate::encoder::ALIGNMENT_32}>::new(value.as_slice());
-                <$struct_type as $crate::Encoder<$endianness, {$crate::encoder::ALIGNMENT_32}, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
+                let mut buffer_decoder = $crate::BufferDecoder::<$endianness, $alignment>::new(value.as_slice());
+                <$struct_type as $crate::Encoder<$endianness, $alignment, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
                 result
             }
         }
         paste::paste! {
             pub trait [<I $struct_type>] {
-                $crate::derive_types!(@typ $endianness, crate::encoder::ALIGNMENT_32, 0, $($element:$ty,)*);
+                $crate::derive_types!(@typ $endianness, $alignment, 0, $($element:$ty,)*);
             }
             impl [<I $struct_type>] for $struct_type {
-                $crate::derive_types!(@def $endianness, crate::encoder::ALIGNMENT_32, 0, $($element:$ty,)*);
+                $crate::derive_types!(@def $endianness, $alignment, 0, $($element:$ty,)*);
             }
         }
     };
@@ -91,10 +89,11 @@ macro_rules! define_codec_struct {
 #[cfg(test)]
 mod tests {
     use byteorder::{BE, LE};
-    use hashbrown::HashMap;
 
     use crate::encoder::{ALIGNMENT_32, ALIGNMENT_DEFAULT};
-    use crate::{header_item_size, BufferDecoder, BufferEncoder, Encoder};
+    use crate::{
+        header_item_size, BufferDecoder, BufferEncoder, Encoder, FieldEncoder, WritableBuffer,
+    };
 
     #[test]
     fn test_simple_type_alignment_default_u_le() {
