@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, LE};
+use byteorder::ByteOrder;
 
 use crate::{header_item_size, BufferDecoder, Encoder, WritableBuffer};
 

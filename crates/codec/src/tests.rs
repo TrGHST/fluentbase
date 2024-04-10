@@ -470,7 +470,7 @@ fn test_option_le() {
     let value1: T = Some(0x7bu32);
     let value2: T = None;
     let result = {
-        // TODO doesnt work. bug?
+        // TODO bug?
         // let mut buffer_encoder =
         //     BufferEncoder::<Endianness1>::new(<T as Encoder<LE,ALIGNMENT_DEFAULT, T>>::HEADER_SIZE, None);
         // assert_eq!(<T as Encoder<Endianness1, T>>::HEADER_SIZE, 5 + 5);
