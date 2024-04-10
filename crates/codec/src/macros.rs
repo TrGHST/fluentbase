@@ -34,15 +34,15 @@ macro_rules! derive_decode {
 }
 #[macro_export]
 macro_rules! derive_types {
-    (@typ $endianness:ty, $alignment:ty, $field_offset:expr,) => {};
-    (@def $endianness:ty, $alignment:ty, $field_offset:expr,) => {};
-    (@typ $endianness:ty, $alignment:ty, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
+    (@typ $endianness:ty, $alignment:ident, $field_offset:expr,) => {};
+    (@def $endianness:ty, $alignment:ident, $field_offset:expr,) => {};
+    (@typ $endianness:ty, $alignment:ident, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
         paste::paste! {
             type [<$val_head:camel>];
         }
         $crate::derive_types!(@typ $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, $alignment, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
-    (@def $endianness:ty, $alignment:ty, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
+    (@def $endianness:ty, $alignment:ident, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
         paste::paste! {
             type [<$val_head:camel>] = $crate::FieldEncoder<$endianness, $alignment, $typ_head, { $field_offset }>;
         }
@@ -52,7 +52,7 @@ macro_rules! derive_types {
 
 #[macro_export]
 macro_rules! define_codec_struct {
-    ($endianness:ty, $alignment:ty, pub struct $struct_type:ident { $($element:ident: $ty:ty),* $(,)? }) => {
+    ($endianness:ty, $alignment:ident, pub struct $struct_type:ident { $($element:ident: $ty:ty),* $(,)? }) => {
         #[derive(Debug, Default, PartialEq, Clone)]
         pub struct $struct_type {
             $(pub $element: $ty),*
@@ -89,11 +89,10 @@ macro_rules! define_codec_struct {
 #[cfg(test)]
 mod tests {
     use byteorder::{BE, LE};
+    use hashbrown::HashMap;
 
     use crate::encoder::{ALIGNMENT_32, ALIGNMENT_DEFAULT};
-    use crate::{
-        header_item_size, BufferDecoder, BufferEncoder, Encoder, FieldEncoder, WritableBuffer,
-    };
+    use crate::{header_item_size, BufferDecoder, BufferEncoder, Encoder};
 
     #[test]
     fn test_simple_type_alignment_default_u_le() {
@@ -411,52 +410,173 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_complicated_type() {
-    //     let value0 = ComplicatedType {
-    //         values: vec![
-    //             SimpleTypeU {
-    //                 a: 100,
-    //                 b: 20,
-    //                 c: 3,
-    //             },
-    //             SimpleTypeU {
-    //                 a: u64::MAX,
-    //                 b: u32::MAX,
-    //                 c: u16::MAX,
-    //             },
-    //         ],
-    //         maps: HashMap::from([(
-    //             7,
-    //             ComplicatedType {
-    //                 values: vec![
-    //                     SimpleTypeU { a: 1, b: 2, c: 3 },
-    //                     SimpleTypeU { a: 4, b: 5, c: 6 },
-    //                 ],
-    //                 maps: Default::default(),
-    //             },
-    //         )]),
-    //     };
-    //     assert_eq!(
-    //         <ComplicatedType as Encoder<LittleEndian, ComplicatedType>>::HEADER_SIZE,
-    //         <Vec<SimpleTypeU> as Encoder<LittleEndian, Vec<SimpleTypeU>>>::HEADER_SIZE
-    //             + <HashMap::<u32, SimpleTypeU> as Encoder<
-    //                 LittleEndian,
-    //                 HashMap::<u32, SimpleTypeU>,
-    //             >>::HEADER_SIZE
-    //     );
-    //     let encoded_value = {
-    //         let mut buffer_encoder = BufferEncoder::<LittleEndian>::new(
-    //             <ComplicatedType as Encoder<LittleEndian, ComplicatedType>>::HEADER_SIZE,
-    //             None,
-    //         );
-    //         value0.encode(&mut buffer_encoder, 0);
-    //         buffer_encoder.finalize()
-    //     };
-    //     println!("{}", hex::encode(&encoded_value));
-    //     let mut buffer_decoder = BufferDecoder::<LittleEndian>::new(encoded_value.as_slice());
-    //     let mut value1 = Default::default();
-    //     ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
-    //     assert_eq!(value0, value1);
-    // }
+    #[test]
+    fn test_complicated_type_alignment_default_le() {
+        type Endianness = LE;
+        const ALIGNMENT: usize = ALIGNMENT_DEFAULT;
+        define_codec_struct! {
+            Endianness,
+            ALIGNMENT,
+            pub struct SimpleTypeU {
+                a: u64,
+                b: u32,
+                c: u16,
+            }
+        }
+        define_codec_struct! {
+            Endianness, ALIGNMENT,
+            pub struct ComplicatedType {
+                values: Vec<SimpleTypeU>,
+                maps: HashMap<u32, ComplicatedType>,
+            }
+        }
+
+        let value0 = ComplicatedType {
+            values: vec![
+                SimpleTypeU {
+                    a: 100,
+                    b: 20,
+                    c: 3,
+                },
+                SimpleTypeU {
+                    a: u64::MAX,
+                    b: u32::MAX,
+                    c: u16::MAX,
+                },
+            ],
+            maps: HashMap::from([(
+                7,
+                ComplicatedType {
+                    values: vec![
+                        SimpleTypeU { a: 1, b: 2, c: 3 },
+                        SimpleTypeU { a: 4, b: 5, c: 6 },
+                    ],
+                    maps: Default::default(),
+                },
+            )]),
+        };
+        assert_eq!(
+            <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
+            <Vec<SimpleTypeU> as Encoder<Endianness, ALIGNMENT, Vec<SimpleTypeU>>>::HEADER_SIZE
+                + <HashMap::<u32, SimpleTypeU> as Encoder<
+                    Endianness,
+                    ALIGNMENT,
+                    HashMap::<u32, SimpleTypeU>,
+                >>::HEADER_SIZE
+        );
+        let encoded_value = {
+            let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
+                <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
+                None,
+            );
+            value0.encode(&mut buffer_encoder, 0);
+            buffer_encoder.finalize()
+        };
+        let fact = hex::encode(&encoded_value);
+        let expected = "02000000200000001c000000010000003c00000004000000400000003c0000006400000000000000140000000300ffffffffffffffffffffffffffff0700000002000000200000001c000000000000003c000000000000003c0000000000000001000000000000000200000003000400000000000000050000000600";
+        assert_eq!(expected, fact);
+        let mut buffer_decoder =
+            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut value1 = Default::default();
+        ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
+        assert_eq!(value0, value1);
+    }
+
+    #[ignore] // TODO
+    #[test]
+    fn test_complicated_type_alignment_32_be() {
+        type Endianness = BE;
+        const ALIGNMENT: usize = ALIGNMENT_32;
+        define_codec_struct! {
+            Endianness,
+            ALIGNMENT,
+            pub struct SimpleTypeU {
+                a: u64,
+                b: u32,
+                c: u16,
+            }
+        }
+        define_codec_struct! {
+            Endianness, ALIGNMENT,
+            pub struct ComplicatedType {
+                values: Vec<SimpleTypeU>,
+                maps: HashMap<u32, ComplicatedType>,
+            }
+        }
+
+        let value0 = ComplicatedType {
+            values: vec![
+                SimpleTypeU {
+                    a: 100,
+                    b: 20,
+                    c: 3,
+                },
+                SimpleTypeU {
+                    a: u64::MAX,
+                    b: u32::MAX,
+                    c: u16::MAX,
+                },
+            ],
+            maps: HashMap::from([(
+                7,
+                ComplicatedType {
+                    values: vec![
+                        SimpleTypeU { a: 1, b: 2, c: 3 },
+                        SimpleTypeU { a: 4, b: 5, c: 6 },
+                    ],
+                    maps: Default::default(),
+                },
+            )]),
+        };
+        assert_eq!(
+            <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
+            <Vec<SimpleTypeU> as Encoder<Endianness, ALIGNMENT, Vec<SimpleTypeU>>>::HEADER_SIZE
+                + <HashMap::<u32, SimpleTypeU> as Encoder<
+                    Endianness,
+                    ALIGNMENT,
+                    HashMap::<u32, SimpleTypeU>,
+                >>::HEADER_SIZE
+        );
+        let encoded_value = {
+            let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
+                <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
+                None,
+            );
+            value0.encode(&mut buffer_encoder, 0);
+            buffer_encoder.finalize()
+        };
+        let fact = hex::encode(&encoded_value);
+        let expected = "\
+        00000002000000ac000000000000000100000000000000000000000000000000\
+        0000000000000000000000000000016c00000000000000000000000000000000\
+        0000000000000000000000000000002000000000000000000000000000000000\
+        0000000000000000000000000000018c00000000000000000000000000000000\
+        0000000000000000000000000000018000000000000000000000000000000000\
+        0000000000000000000000000000000000000064000000000000000000000000\
+        0000000000000000000000000000001400000000000000000000000000000000\
+        0000000000000000000000000003000000000000000000000000000000000000\
+        000000000000000000000000ffffffffffffffff000000000000000000000000\
+        000000000000000000000000ffffffff00000000000000000000000000000000\
+        000000000000000000000000ffff000000000000000000000000000000000000\
+        0000000000000000000000000000000700000000000000000000000000000000\
+        00000000000000000000000000000002000000ac000000000000000000000000\
+        0000000000000000000000000000000000000000000000000000016c00000000\
+        0000000000000000000000000000000000000000000000000000000000000000\
+        0000000000000000000000000000000000000000000000000000016c00000000\
+        0000000000000000000000000000000000000000000000000000000000000000\
+        0000000000000000000000000000000000000000000000000000000000000001\
+        0000000000000000000000000000000000000000000000000000000200000000\
+        0000000000000000000000000000000000000000000000000003000000000000\
+        0000000000000000000000000000000000000000000000000000000000000004\
+        0000000000000000000000000000000000000000000000000000000500000000\
+        0000000000000000000000000000000000000000000000000006000000000000\
+        0000000000000000000000000000000000000000000000000000000000000000\
+        000000000000000000000000";
+        assert_eq!(expected, fact);
+        let mut buffer_decoder =
+            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut value1 = Default::default();
+        ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
+        assert_eq!(value0, value1);
+    }
 }
