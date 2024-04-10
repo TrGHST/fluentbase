@@ -1,3 +1,4 @@
+use crate::encoder::ALIGNMENT_DEFAULT;
 use crate::{buffer::WritableBuffer, BufferDecoder, BufferEncoder, Encoder};
 use alloc::vec::Vec;
 use byteorder::ByteOrder;
@@ -7,12 +8,17 @@ use hashbrown::{HashMap, HashSet};
 impl<
         E: ByteOrder,
         const A: usize,
-        K: Default + Sized + Encoder<E, K, A> + Eq + Hash + Ord,
-        V: Default + Sized + Encoder<E, V, A>,
-    > Encoder<E, HashMap<K, V>, A> for HashMap<K, V>
+        K: Default + Sized + Encoder<E, A, K> + Eq + Hash + Ord,
+        V: Default + Sized + Encoder<E, A, V>,
+    > Encoder<E, A, HashMap<K, V>> for HashMap<K, V>
 {
     // length + keys (bytes) + values (bytes)
-    const HEADER_SIZE: usize = 4 + 8 + 8;
+    const HEADER_SIZE: usize = if A == ALIGNMENT_DEFAULT {
+        4 + 8 + 8
+    } else {
+        // TODO
+        4 + 8 + 8
+    };
 
     fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
@@ -76,8 +82,8 @@ impl<
     }
 }
 
-impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, T> + Eq + Hash + Ord>
-    Encoder<E, HashSet<T>, A> for HashSet<T>
+impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T> + Eq + Hash + Ord>
+    Encoder<E, A, HashSet<T>> for HashSet<T>
 {
     // length + keys (bytes)
     const HEADER_SIZE: usize = 4 + 8;

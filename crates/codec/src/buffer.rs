@@ -4,7 +4,8 @@ use byteorder::ByteOrder;
 use paste::paste;
 use phantom_type::PhantomType;
 
-use crate::encoder::{header_item_size, ALIGNMENT_DEFAULT, HEADER_ITEM_SIZE_DEFAULT};
+use crate::encoder::{ALIGNMENT_DEFAULT, HEADER_ITEM_SIZE_DEFAULT};
+use crate::header_item_size;
 
 pub trait WritableBuffer<E: ByteOrder, const A: usize> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
@@ -26,7 +27,7 @@ macro_rules! impl_byte_writer {
                     $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
                     core::mem::size_of::<$typ>()
                 } else {
-                    let header_item_size = header_item_size(A);
+                    let header_item_size = header_item_size!(A);
                     let type_size = core::mem::size_of::<$typ>();
                     let field_start_offset = field_offset + A - type_size;
                     $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
@@ -103,7 +104,7 @@ impl<E: ByteOrder, const N: usize, const A: usize> WritableBuffer<E, A> for Fixe
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.len();
         let data_len = bytes.len();
-        let header_item_size = header_item_size(A);
+        let header_item_size = header_item_size!(A);
         let data_len_aligned = if header_item_size == HEADER_ITEM_SIZE_DEFAULT {
             data_len
         } else {
@@ -157,7 +158,7 @@ impl<E: ByteOrder, const A: usize> BufferEncoder<E, A> {
 
 impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize {
-        if A != 0 {
+        if A != ALIGNMENT_DEFAULT {
             let mut v = [0; A];
             v.last_mut().map(|v| *v = value as u8);
             self.write_bytes(field_offset, &v);
@@ -167,7 +168,7 @@ impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> 
         1
     }
     fn write_u8(&mut self, field_offset: usize, value: u8) -> usize {
-        if A != 0 {
+        if A != ALIGNMENT_DEFAULT {
             let mut v = [0; A];
             v.last_mut().map(|v| *v = value);
             self.write_bytes(field_offset, &v);
@@ -187,7 +188,7 @@ impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> 
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.buffer.len();
         let data_len = bytes.len();
-        let header_item_size = header_item_size(A);
+        let header_item_size = header_item_size!(A);
         let data_len_aligned = if header_item_size == HEADER_ITEM_SIZE_DEFAULT {
             data_len
         } else {
@@ -217,11 +218,7 @@ macro_rules! impl_byte_reader {
     ($typ:ty, $endianness:ident, $alignment:expr) => {
         paste! {
             pub fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
-                if $alignment == ALIGNMENT_DEFAULT {
-                    $endianness::[<read_ $typ>](&self.buffer[field_offset..])
-                } else {
-                    $endianness::[<read_ $typ>](&self.buffer[field_offset..])
-                }
+                $endianness::[<read_ $typ>](&self.buffer[field_offset..])
             }
         }
     };
@@ -250,7 +247,7 @@ impl<'a, E: ByteOrder, const A: usize> BufferDecoder<'a, E, A> {
     impl_byte_reader!(u64, E, A);
 
     pub fn read_bytes_header(&self, field_offset: usize) -> (usize, usize) {
-        let header_item_size = header_item_size(A);
+        let header_item_size = header_item_size!(A);
         let bytes_offset = self.read_u32(field_offset) as usize;
         let bytes_length = self.read_u32(field_offset + header_item_size) as usize;
         (bytes_offset, bytes_length)
@@ -274,14 +271,16 @@ mod test {
     use byteorder::{ByteOrder, BE, LE};
 
     use crate::buffer::{BufferDecoder, BufferEncoder, FixedEncoder, WritableBuffer};
-    use crate::encoder::{header_item_size, ALIGNMENT_DEFAULT};
+    use crate::encoder::ALIGNMENT_DEFAULT;
+    use crate::{header_item_size, Encoder};
+
     const ALIGNMENT_32: usize = 32;
 
     #[test]
     fn test_fixed_array_alignment_default_le() {
         type Endianness = LE;
         const ALIGNMENT: usize = ALIGNMENT_DEFAULT;
-        let header_item_size = header_item_size(ALIGNMENT);
+        let header_item_size = header_item_size!(ALIGNMENT);
         let buffer = {
             let mut field_offset = 0;
             let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
@@ -318,7 +317,7 @@ mod test {
     fn test_fixed_array_alignment_default_be() {
         type Endianness = BE;
         const ALIGNMENT: usize = ALIGNMENT_DEFAULT;
-        let header_item_size = header_item_size(ALIGNMENT);
+        let header_item_size = header_item_size!(ALIGNMENT);
         let buffer = {
             let mut field_offset = 0;
             let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
@@ -380,7 +379,7 @@ mod test {
     fn test_fixed_array_alignment_32_be() {
         type Endianness = BE;
         const ALIGNMENT: usize = ALIGNMENT_32;
-        let header_item_size = header_item_size(ALIGNMENT);
+        let header_item_size = header_item_size!(ALIGNMENT);
         let buffer = {
             let mut field_offset = 0;
             let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
@@ -442,7 +441,7 @@ mod test {
     fn test_bytes_array_alignment_default_le() {
         type Endianness = LE;
         const ALIGNMENT: usize = ALIGNMENT_DEFAULT;
-        let header_item_size = header_item_size(ALIGNMENT);
+        let header_item_size = header_item_size!(ALIGNMENT);
         let buffer = {
             let mut buffer = BufferEncoder::<Endianness, ALIGNMENT>::new(
                 header_item_size
@@ -477,18 +476,19 @@ mod test {
     fn test_bytes_array_alignment_32_be() {
         type Endianness = BE;
         const ALIGNMENT: usize = ALIGNMENT_32;
-        let header_item_size = header_item_size(ALIGNMENT);
+        let header_item_size = header_item_size!(ALIGNMENT);
         let buffer = {
-            let mut buffer = BufferEncoder::<Endianness, ALIGNMENT>::new(
-                header_item_size
-                    + header_item_size * 2
-                    + header_item_size
-                    + header_item_size * 2
-                    + header_item_size,
-                None,
-            );
+            let header_length = header_item_size
+                + header_item_size * 2
+                + header_item_size
+                + header_item_size * 2
+                + header_item_size;
+            let mut buffer = BufferEncoder::<Endianness, ALIGNMENT>::new(header_length, None);
             let mut field_offset = 0;
-            buffer.write_u32(field_offset, 0xbadcab1e);
+            let v = 0xbadcab1e;
+            let header_size = <u32 as Encoder<Endianness, ALIGNMENT, u32>>::HEADER_SIZE;
+            assert_eq!(ALIGNMENT, header_size);
+            buffer.write_u32(field_offset, v);
             field_offset += header_item_size;
             buffer.write_bytes(field_offset, &[0, 1, 2, 3, 4]);
             field_offset += header_item_size * 2;

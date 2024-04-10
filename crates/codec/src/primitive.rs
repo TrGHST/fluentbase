@@ -1,9 +1,9 @@
-use crate::{buffer::WritableBuffer, BufferDecoder, Encoder};
+use crate::{buffer::WritableBuffer, header_item_size, BufferDecoder, Encoder};
 use byteorder::ByteOrder;
 use paste::paste;
 
 impl<E: ByteOrder, const A: usize> Encoder<E, A, u8> for u8 {
-    const HEADER_SIZE: usize = core::mem::size_of::<u8>();
+    const HEADER_SIZE: usize = header_item_size!(A, Self);
     fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u8(field_offset, *self);
     }
@@ -17,7 +17,7 @@ impl<E: ByteOrder, const A: usize> Encoder<E, A, u8> for u8 {
     }
 }
 impl<E: ByteOrder, const A: usize> Encoder<E, A, bool> for bool {
-    const HEADER_SIZE: usize = core::mem::size_of::<bool>();
+    const HEADER_SIZE: usize = header_item_size!(A, Self);
     fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u8(field_offset, *self as u8);
     }
@@ -35,7 +35,7 @@ macro_rules! impl_encoder {
     ($typ:ty) => {
         paste! {
             impl<E: ByteOrder, const A:usize> Encoder<E, A, $typ> for $typ {
-                const HEADER_SIZE: usize = core::mem::size_of::<$typ>();
+                const HEADER_SIZE: usize = $crate::header_item_size!(A, Self);
                 fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
                     encoder.[<write_ $typ>](field_offset, *self);
                 }

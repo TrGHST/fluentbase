@@ -4,14 +4,25 @@ use byteorder::ByteOrder;
 use phantom_type::PhantomType;
 
 pub const ALIGNMENT_DEFAULT: usize = 0; // 4 byte header items, not alignment for fields
+pub const ALIGNMENT_32: usize = 32; // 4 byte header items, not alignment for fields
 pub const HEADER_ITEM_SIZE_DEFAULT: usize = 4;
 
-#[inline]
-pub(crate) fn header_item_size(size: usize) -> usize {
-    if size == 0 {
-        return HEADER_ITEM_SIZE_DEFAULT;
-    }
-    size
+#[macro_export]
+macro_rules! header_item_size {
+    ($alignment:expr) => {
+        if $alignment == $crate::encoder::ALIGNMENT_DEFAULT {
+            $crate::encoder::HEADER_ITEM_SIZE_DEFAULT
+        } else {
+            $alignment
+        }
+    };
+    ($alignment:expr, $typ:ty) => {
+        if $alignment == $crate::encoder::ALIGNMENT_DEFAULT {
+            core::mem::size_of::<$typ>()
+        } else {
+            $alignment
+        }
+    };
 }
 
 pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
