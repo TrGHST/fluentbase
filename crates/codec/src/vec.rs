@@ -21,9 +21,10 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T>> Encode
 
     fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u32(field_offset, self.len() as u32);
-        let mut value_encoder = BufferEncoder::<E, A>::new(T::HEADER_SIZE * self.len(), None);
+        let size_of_t = core::mem::size_of::<T>();
+        let mut value_encoder = BufferEncoder::<E, A>::new(size_of_t * self.len(), None);
         for (i, obj) in self.iter().enumerate() {
-            obj.encode(&mut value_encoder, T::HEADER_SIZE * i);
+            obj.encode(&mut value_encoder, i * size_of_t);
         }
         encoder.write_bytes(
             field_offset + header_item_size!(A),
