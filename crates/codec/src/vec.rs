@@ -1,4 +1,4 @@
-use crate::{buffer::WritableBuffer, BufferDecoder, BufferEncoder, Encoder};
+use crate::{buffer::WritableBuffer, header_item_size, BufferDecoder, BufferEncoder, Encoder};
 use alloc::vec::Vec;
 use byteorder::ByteOrder;
 
@@ -17,19 +17,22 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T>> Encode
     for Vec<T>
 {
     // u32: length + values (bytes)
-    const HEADER_SIZE: usize = core::mem::size_of::<u32>() * 3;
+    const HEADER_SIZE: usize = header_item_size!(A) * 3;
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u32(field_offset, self.len() as u32);
         let mut value_encoder = BufferEncoder::<E, A>::new(T::HEADER_SIZE * self.len(), None);
         for (i, obj) in self.iter().enumerate() {
             obj.encode(&mut value_encoder, T::HEADER_SIZE * i);
         }
-        encoder.write_bytes(field_offset + 4, value_encoder.finalize().as_slice());
+        encoder.write_bytes(
+            field_offset + header_item_size!(A),
+            value_encoder.finalize().as_slice(),
+        );
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut Vec<T>,
     ) -> (usize, usize) {
@@ -37,17 +40,17 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T>> Encode
         if count > result.capacity() {
             result.reserve(count - result.capacity());
         }
-        let (offset, length) = decoder.read_bytes_header(field_offset + 4);
+        let (offset, length) = decoder.read_bytes_header(field_offset + header_item_size!(A));
         (offset, length)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder<E, A>, field_offset: usize, result: &mut Vec<T>) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut Vec<T>) {
         let input_len = decoder.read_u32(field_offset) as usize;
         if input_len == 0 {
             result.clear();
             return;
         }
-        let input_bytes = decoder.read_bytes(field_offset + 4);
+        let input_bytes = decoder.read_bytes(field_offset + header_item_size!(A));
         let mut value_decoder = BufferDecoder::new(input_bytes);
         *result = (0..input_len)
             .map(|i| {

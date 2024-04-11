@@ -7,7 +7,10 @@ mod tests {
     use hashbrown::HashMap;
 
     use crate::encoder::{ALIGNMENT_32, ALIGNMENT_DEFAULT};
-    use crate::{define_codec_struct, header_item_size, BufferDecoder, BufferEncoder, Encoder};
+    use crate::{
+        call_decode_body, call_encode, define_codec_struct, header_item_size, header_size,
+        BufferDecoder, BufferEncoder, Encoder, FieldEncoder, WritableBuffer,
+    };
 
     #[test]
     fn test_simple_type_alignment_default_u_le() {
@@ -41,14 +44,19 @@ mod tests {
                 <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::encode::<
+                BufferEncoder<Endianness, 0>,
+            >(&value0, &mut buffer_encoder, 0);
             buffer_encoder.finalize()
         };
         println!("{}", hex::encode(&encoded_value));
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        SimpleTypeU::decode_body(&mut buffer_decoder, 0, &mut value1);
+        <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::decode_body(
+            &mut buffer_decoder,
+            0,
+            &mut value1,
+        );
         assert_eq!(value0, value1);
     }
 
@@ -84,10 +92,15 @@ mod tests {
         );
         let encoded_value = {
             let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
-                <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::HEADER_SIZE,
+                // <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::HEADER_SIZE,
+                header_size!(SimpleTypeU, Endianness, ALIGNMENT),
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::encode(
+                &value0,
+                &mut buffer_encoder,
+                0,
+            );
             buffer_encoder.finalize()
         };
         let expected = "\
@@ -98,10 +111,16 @@ mod tests {
         ";
         let fact = hex::encode(&encoded_value);
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        SimpleTypeU::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            SimpleTypeU,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 
@@ -134,7 +153,14 @@ mod tests {
                 <SimpleTypeS as Encoder<Endianness, ALIGNMENT, SimpleTypeS>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            call_encode!(
+                SimpleTypeS,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
             buffer_encoder.finalize()
         };
         let expected = "\
@@ -144,10 +170,16 @@ mod tests {
         ";
         let fact = hex::encode(&encoded_value);
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        SimpleTypeS::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            SimpleTypeS,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 
@@ -181,7 +213,14 @@ mod tests {
                 <SimpleTypeS as Encoder<Endianness, ALIGNMENT, SimpleTypeS>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            call_encode!(
+                SimpleTypeS,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
             buffer_encoder.finalize()
         };
         let expected = "\
@@ -191,10 +230,16 @@ mod tests {
         ";
         let fact = hex::encode(&encoded_value);
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        SimpleTypeS::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            SimpleTypeS,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 
@@ -388,16 +433,29 @@ mod tests {
                 <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            call_encode!(
+                ComplicatedType,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
             buffer_encoder.finalize()
         };
         let fact = hex::encode(&encoded_value);
         let expected = "02000000200000001c000000010000003c00000004000000400000003c0000006400000000000000140000000300ffffffffffffffffffffffffffff0700000002000000200000001c000000000000003c000000000000003c0000000000000001000000000000000200000003000400000000000000050000000600";
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            ComplicatedType,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 
@@ -461,7 +519,14 @@ mod tests {
                 <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            call_encode!(
+                ComplicatedType,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
             buffer_encoder.finalize()
         };
         let fact = hex::encode(&encoded_value);
@@ -492,10 +557,16 @@ mod tests {
         0000000000000000000000000000000000000000000000000000000000000000\
         000000000000000000000000";
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        ComplicatedType::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            ComplicatedType,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 
@@ -520,7 +591,8 @@ mod tests {
             pub struct FuncParams {
                 // a: bool,
                 // b: Inner,
-                c: [UInt; 2],
+                // c: [UInt; 2],
+                c: UInt,
             }
         }
         let value0 = FuncParams {
@@ -530,11 +602,8 @@ mod tests {
             //     y: [UInt::default(), UInt::default(), UInt::default()],
             // },
             c: [
-                UInt::default(),
-                [
-                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-                    22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-                ],
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                23, 24, 25, 26, 27, 28, 29, 30, 31,
             ],
         };
 
@@ -549,7 +618,22 @@ mod tests {
                 <FuncParams as Encoder<Endianness, ALIGNMENT, FuncParams>>::HEADER_SIZE,
                 None,
             );
-            value0.encode(&mut buffer_encoder, 0);
+            call_encode!(
+                FuncParams,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
+            call_encode!(
+                FuncParams,
+                Endianness,
+                ALIGNMENT,
+                &value0,
+                &mut buffer_encoder,
+                0
+            );
             buffer_encoder.finalize()
         };
         let encoded_value_len = encoded_value.len();
@@ -578,10 +662,16 @@ mod tests {
         let current = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         let fact = hex::encode(&encoded_value);
         assert_eq!(expected, fact);
-        let mut buffer_decoder =
-            BufferDecoder::<Endianness, ALIGNMENT>::new(encoded_value.as_slice());
+        let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
-        FuncParams::decode_body(&mut buffer_decoder, 0, &mut value1);
+        call_decode_body!(
+            FuncParams,
+            Endianness,
+            ALIGNMENT,
+            &mut buffer_decoder,
+            0,
+            &mut value1
+        );
         assert_eq!(value0, value1);
     }
 }

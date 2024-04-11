@@ -25,6 +25,42 @@ macro_rules! header_item_size {
     };
 }
 
+#[macro_export]
+macro_rules! header_size {
+    ($typ:ty, $endianness:ty, $alignment:expr) => {
+        <$typ as Encoder<$endianness, $alignment, $typ>>::HEADER_SIZE
+    };
+}
+
+#[macro_export]
+macro_rules! call_encode {
+    ($typ:ty, $endianness:ty, $alignment:expr, &$self:ident, &mut $encoder:ident, $field_offset:expr) => {
+        <$typ as Encoder<$endianness, $alignment, $typ>>::encode(
+            &$self,
+            &mut $encoder,
+            $field_offset,
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! call_decode_body {
+    ($typ:ty, $endianness:ty, $alignment:expr, &mut $decoder:ident, $field_offset:expr, &mut $result:ident) => {
+        <$typ as Encoder<$endianness, $alignment, $typ>>::decode_body(
+            &mut $decoder,
+            $field_offset,
+            &mut $result,
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! align_number {
+    ($number:expr, $alignment:expr) => {
+        ($number + $alignment - 1) / $alignment * $alignment
+    };
+}
+
 pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
     const HEADER_SIZE: usize;
 
@@ -33,7 +69,7 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
     }
 
     fn encode_to_fixed<const N: usize>(&self, field_offset: usize) -> ([u8; N], usize) {
-        let mut buffer_encoder = FixedEncoder::<E, N, A>::new(Self::HEADER_SIZE);
+        let mut buffer_encoder = FixedEncoder::<E, N>::new(Self::HEADER_SIZE);
         self.encode(&mut buffer_encoder, field_offset);
         buffer_encoder.finalize()
     }
@@ -43,15 +79,15 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
         buffer_encoder.finalize()
     }
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize);
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize);
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut T,
     ) -> (usize, usize);
 
-    fn decode_body(decoder: &mut BufferDecoder<E, A>, field_offset: usize, result: &mut T) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut T) {
         Self::decode_header(decoder, field_offset, result);
     }
 }

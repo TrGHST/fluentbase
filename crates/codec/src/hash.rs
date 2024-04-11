@@ -17,7 +17,7 @@ impl<
     const HEADER_SIZE: usize =
         header_item_size!(A) + header_item_size!(A) * 2 + header_item_size!(A) * 2;
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure keys & values are sorted
@@ -44,7 +44,7 @@ impl<
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut HashMap<K, V>,
     ) -> (usize, usize) {
@@ -60,7 +60,7 @@ impl<
     }
 
     fn decode_body(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut HashMap<K, V>,
     ) {
@@ -95,7 +95,7 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T> + Eq + 
     // length + keys (bytes)
     const HEADER_SIZE: usize = header_item_size!(A) + header_item_size!(A) * 2; // 4 + 8
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         // encode length
         encoder.write_u32(field_offset, self.len() as u32);
         // make sure set is sorted
@@ -110,7 +110,7 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T> + Eq + 
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut HashSet<T>,
     ) -> (usize, usize) {
@@ -123,11 +123,7 @@ impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T> + Eq + 
         (value_offset, value_length)
     }
 
-    fn decode_body(
-        decoder: &mut BufferDecoder<E, A>,
-        field_offset: usize,
-        result: &mut HashSet<T>,
-    ) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut HashSet<T>) {
         // decode length, keys and values
         let length = decoder.read_u32(field_offset) as usize;
         let value_bytes = decoder.read_bytes(field_offset + header_item_size!(A));

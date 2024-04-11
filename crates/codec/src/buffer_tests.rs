@@ -13,7 +13,7 @@ fn test_fixed_array_alignment_default_le() {
     let header_item_size = header_item_size!(ALIGNMENT);
     let buffer = {
         let mut field_offset = 0;
-        let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
+        let mut buffer = FixedEncoder::<Endianness, 1024>::new(
             header_item_size
                     + header_item_size * 2 // dynamic
                     + header_item_size
@@ -34,7 +34,7 @@ fn test_fixed_array_alignment_default_le() {
     let expected = "1eabdcba1c00000005000000efbeadde21000000050000007f00000000010203040506070809";
     let res = hex::encode(&buffer);
     assert_eq!(expected, res);
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     assert_eq!(decoder.read_u32(0), 0xbadcab1e);
     assert_eq!(decoder.read_bytes(4).to_vec(), vec![0, 1, 2, 3, 4]);
     assert_eq!(decoder.read_u32(12), 0xdeadbeef);
@@ -49,7 +49,7 @@ fn test_fixed_array_alignment_default_be() {
     let header_item_size = header_item_size!(ALIGNMENT);
     let buffer = {
         let mut field_offset = 0;
-        let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
+        let mut buffer = FixedEncoder::<Endianness, 1024>::new(
             header_item_size
                     + header_item_size * 2 // dynamic
                     + header_item_size
@@ -70,7 +70,7 @@ fn test_fixed_array_alignment_default_be() {
     let expected = "badcab1e0000001c00000005deadbeef00000021000000050000007f00010203040506070809";
     let res = hex::encode(&buffer);
     assert_eq!(expected, res);
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     let mut field_offset = 0;
     assert_eq!(decoder.read_u32(field_offset), 0xbadcab1e);
     field_offset += header_item_size;
@@ -110,7 +110,7 @@ fn test_fixed_array_alignment_32_be() {
     let header_item_size = header_item_size!(ALIGNMENT);
     let buffer = {
         let mut field_offset = 0;
-        let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(
+        let mut buffer = FixedEncoder::<Endianness, 1024>::new(
             header_item_size
                     + header_item_size * 2 // dynamic
                     + header_item_size
@@ -140,7 +140,7 @@ fn test_fixed_array_alignment_32_be() {
             0506070809000000000000000000000000000000000000000000000000000000";
     let fact = hex::encode(&buffer);
     assert_eq!(expected, fact);
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     let mut field_offset = 0;
     assert_eq!(0xbadcab1e, decoder.read_u32(field_offset));
     field_offset += header_item_size;
@@ -192,7 +192,7 @@ fn test_bytes_array_alignment_default_le() {
         buffer.finalize()
     };
     println!("{}", hex::encode(&buffer));
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     assert_eq!(decoder.read_u32(0), 0xbadcab1e);
     assert_eq!(decoder.read_bytes(4).to_vec(), vec![0, 1, 2, 3, 4]);
     assert_eq!(decoder.read_u32(12), 0xdeadbeef);
@@ -239,7 +239,7 @@ fn test_bytes_array_alignment_32_be() {
         0506070809000000000000000000000000000000000000000000000000000000";
     let fact = hex::encode(&buffer);
     assert_eq!(expected, fact);
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     let mut field_offset = 0;
     assert_eq!(0xbadcab1e, decoder.read_u32(field_offset));
     field_offset += header_item_size;
@@ -287,7 +287,7 @@ fn test_simple_encoding_alignment_default_le() {
         buffer.finalize()
     };
     println!("{}", hex::encode(&buffer));
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(buffer.as_slice());
+    let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     assert_eq!(decoder.read_u32(0), 100);
     assert_eq!(decoder.read_u16(4), 20);
     assert_eq!(decoder.read_u64(6), 3);
@@ -308,7 +308,7 @@ fn test_fixed_encoding_alignment_default_le() {
         c: 3,
     };
     let buffer = {
-        let mut buffer = FixedEncoder::<Endianness, 1024, ALIGNMENT>::new(4 + 2 + 8);
+        let mut buffer = FixedEncoder::<Endianness, 1024>::new(4 + 2 + 8);
         let mut offset = 0;
         offset += buffer.write_u32(offset, test.a);
         offset += buffer.write_u16(offset, test.b);
@@ -316,7 +316,7 @@ fn test_fixed_encoding_alignment_default_le() {
         buffer.bytes().to_vec()
     };
     println!("{}", hex::encode(&buffer));
-    let decoder = BufferDecoder::<Endianness, ALIGNMENT>::new(&buffer);
+    let decoder = BufferDecoder::<Endianness>::new(&buffer);
     assert_eq!(decoder.read_u32(0), 100);
     assert_eq!(decoder.read_u16(4), 20);
     assert_eq!(decoder.read_u64(6), 3);

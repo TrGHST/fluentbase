@@ -4,11 +4,11 @@ use paste::paste;
 
 impl<E: ByteOrder, const A: usize> Encoder<E, A, u8> for u8 {
     const HEADER_SIZE: usize = header_item_size!(A, Self);
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u8(field_offset, *self);
     }
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut u8,
     ) -> (usize, usize) {
@@ -18,11 +18,11 @@ impl<E: ByteOrder, const A: usize> Encoder<E, A, u8> for u8 {
 }
 impl<E: ByteOrder, const A: usize> Encoder<E, A, bool> for bool {
     const HEADER_SIZE: usize = header_item_size!(A, Self);
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         encoder.write_u8(field_offset, *self as u8);
     }
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut bool,
     ) -> (usize, usize) {
@@ -36,11 +36,11 @@ macro_rules! impl_encoder {
         paste! {
             impl<E: ByteOrder, const A:usize> Encoder<E, A, $typ> for $typ {
                 const HEADER_SIZE: usize = $crate::header_item_size!(A, Self);
-                fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+                fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
                     encoder.[<write_ $typ>](field_offset, *self);
                 }
                 fn decode_header(
-                    decoder: &mut BufferDecoder<E, A>,
+                    decoder: &mut BufferDecoder<E>,
                     field_offset: usize,
                     result: &mut $typ,
                 ) -> (usize, usize) {
@@ -59,19 +59,20 @@ impl_encoder!(i16);
 impl_encoder!(i32);
 impl_encoder!(i64);
 
-impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T>, const N: usize>
+impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, 1, T>, const N: usize>
     Encoder<E, A, [T; N]> for [T; N]
 {
     const HEADER_SIZE: usize = T::HEADER_SIZE * N;
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         (0..N).for_each(|i| {
-            self[i].encode(encoder, field_offset + i * T::HEADER_SIZE);
+            Encoder::<E, 1, T>::encode(&self[i], encoder, field_offset + i * T::HEADER_SIZE);
+            // self[i].encode(encoder, field_offset + i * T::HEADER_SIZE);
         });
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut [T; N],
     ) -> (usize, usize) {
@@ -87,9 +88,9 @@ impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T> + Default> Encode
 {
     const HEADER_SIZE: usize = 1 + T::HEADER_SIZE;
 
-    fn encode<W: WritableBuffer<E, A>>(&self, encoder: &mut W, field_offset: usize) {
+    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
         let option_flag = if self.is_some() { 1u8 } else { 0u8 };
-        option_flag.encode(encoder, field_offset);
+        <u8 as Encoder<E, A, u8>>::encode::<W>(&option_flag, encoder, field_offset);
         if let Some(value) = &self {
             value.encode(encoder, field_offset + 1);
         } else {
@@ -98,12 +99,12 @@ impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T> + Default> Encode
     }
 
     fn decode_header(
-        decoder: &mut BufferDecoder<E, A>,
+        decoder: &mut BufferDecoder<E>,
         field_offset: usize,
         result: &mut Option<T>,
     ) -> (usize, usize) {
         let mut option_flag: u8 = 0;
-        u8::decode_header(decoder, field_offset, &mut option_flag);
+        <u8 as Encoder<E, A, u8>>::decode_header(decoder, field_offset, &mut option_flag);
         *result = if option_flag != 0 {
             let mut result_inner: T = Default::default();
             T::decode_header(decoder, field_offset + 1, &mut result_inner);
@@ -114,9 +115,9 @@ impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T> + Default> Encode
         (0, 0)
     }
 
-    fn decode_body(decoder: &mut BufferDecoder<E, A>, field_offset: usize, result: &mut Option<T>) {
+    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut Option<T>) {
         let mut option_flag: u8 = 0;
-        u8::decode_header(decoder, field_offset, &mut option_flag);
+        <u8 as Encoder<E, A, u8>>::decode_header(decoder, field_offset, &mut option_flag);
         *result = if option_flag != 0 {
             let mut result_inner: T = Default::default();
             T::decode_body(decoder, field_offset + 1, &mut result_inner);

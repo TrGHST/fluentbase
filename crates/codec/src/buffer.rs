@@ -7,7 +7,7 @@ use phantom_type::PhantomType;
 use crate::encoder::{ALIGNMENT_DEFAULT, HEADER_ITEM_SIZE_DEFAULT};
 use crate::header_item_size;
 
-pub trait WritableBuffer<E: ByteOrder, const A: usize> {
+pub trait WritableBuffer<E: ByteOrder> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
     fn write_u8(&mut self, field_offset: usize, value: u8) -> usize;
     fn write_i16(&mut self, field_offset: usize, value: i16) -> usize;
@@ -20,33 +20,24 @@ pub trait WritableBuffer<E: ByteOrder, const A: usize> {
 }
 
 macro_rules! impl_byte_writer {
-    ($typ:ty, $endianness:ident, $alignment:expr) => {
+    ($typ:ty, $endianness:ident) => {
         paste! {
             fn [<write_ $typ>](&mut self, field_offset: usize, value: $typ) -> usize {
-                if $alignment == ALIGNMENT_DEFAULT {
-                    $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
-                    core::mem::size_of::<$typ>()
-                } else {
-                    let header_item_size = header_item_size!(A);
-                    let type_size = core::mem::size_of::<$typ>();
-                    let field_start_offset = field_offset + A - type_size;
-                    $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
-                    self.buffer[field_offset+type_size..field_offset+A].fill(0);
-                    A
-                }
+                $endianness::[<write_ $typ>](&mut self.buffer[field_offset..], value);
+                core::mem::size_of::<$typ>()
             }
         }
     };
 }
 
-pub struct FixedEncoder<E: ByteOrder, const N: usize, const A: usize> {
+pub struct FixedEncoder<E: ByteOrder, const N: usize> {
     header_length: usize,
     body_length: usize,
     buffer: [u8; N],
     _phantom_data: PhantomType<E>,
 }
 
-impl<E: ByteOrder, const N: usize, const A: usize> FixedEncoder<E, N, A> {
+impl<E: ByteOrder, const N: usize> FixedEncoder<E, N> {
     pub fn new(header_length: usize) -> Self {
         Self {
             header_length,
@@ -72,7 +63,7 @@ impl<E: ByteOrder, const N: usize, const A: usize> FixedEncoder<E, N, A> {
     }
 }
 
-impl<E: ByteOrder, const N: usize, const A: usize> WritableBuffer<E, A> for FixedEncoder<E, N, A> {
+impl<E: ByteOrder, const N: usize> WritableBuffer<E> for FixedEncoder<E, N> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize {
         // if A != ALIGNMENT_DEFAULT {
         self.buffer[field_offset] = value as u8;
@@ -91,42 +82,30 @@ impl<E: ByteOrder, const N: usize, const A: usize> WritableBuffer<E, A> for Fixe
         1
     }
 
-    impl_byte_writer!(u16, E, A);
-    impl_byte_writer!(i16, E, A);
-    impl_byte_writer!(u32, E, A);
-    impl_byte_writer!(i32, E, A);
-    impl_byte_writer!(u64, E, A);
-    impl_byte_writer!(i64, E, A);
+    impl_byte_writer!(u16, E);
+    impl_byte_writer!(i16, E);
+    impl_byte_writer!(u32, E);
+    impl_byte_writer!(i32, E);
+    impl_byte_writer!(u64, E);
+    impl_byte_writer!(i64, E);
 
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.len();
         let data_len = bytes.len();
-        let header_item_size = header_item_size!(A);
-        let data_len_aligned = if header_item_size == HEADER_ITEM_SIZE_DEFAULT {
-            data_len
-        } else {
-            (data_len + A - 1) / A * A
-        };
-        <FixedEncoder<E, N, A> as WritableBuffer<E, A>>::write_u32(
+        let header_item_size = HEADER_ITEM_SIZE_DEFAULT;
+        let data_len_aligned = data_len;
+        <FixedEncoder<E, N> as WritableBuffer<E>>::write_u32(
             self,
             field_offset,
             data_offset as u32,
         );
-        <FixedEncoder<E, N, A> as WritableBuffer<E, A>>::write_u32(
+        <FixedEncoder<E, N> as WritableBuffer<E>>::write_u32(
             self,
             field_offset + header_item_size,
             data_len_aligned as u32,
         );
         self.buffer[data_offset..(data_offset + data_len)].copy_from_slice(bytes);
-        if header_item_size == HEADER_ITEM_SIZE_DEFAULT {
-            self.body_length += data_len;
-        } else {
-            let data_len_aligned = (data_len + A - 1) / A * A;
-            if data_len != data_len_aligned {
-                self.buffer[data_offset + data_len..data_offset + data_len_aligned].fill(0)
-            }
-            self.body_length += data_len_aligned;
-        }
+        self.body_length += data_len;
 
         return header_item_size * 2;
     }
@@ -153,7 +132,7 @@ impl<E: ByteOrder, const A: usize> BufferEncoder<E, A> {
     }
 }
 
-impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> {
+impl<E: ByteOrder, const A: usize> WritableBuffer<E> for BufferEncoder<E, A> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize {
         // TODO use ByteOrder for writing?
         // if A != ALIGNMENT_DEFAULT {
@@ -173,12 +152,12 @@ impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> 
         1
     }
 
-    impl_byte_writer!(u16, E, A);
-    impl_byte_writer!(i16, E, A);
-    impl_byte_writer!(u32, E, A);
-    impl_byte_writer!(i32, E, A);
-    impl_byte_writer!(u64, E, A);
-    impl_byte_writer!(i64, E, A);
+    impl_byte_writer!(u16, E);
+    impl_byte_writer!(i16, E);
+    impl_byte_writer!(u32, E);
+    impl_byte_writer!(i32, E);
+    impl_byte_writer!(u64, E);
+    impl_byte_writer!(i64, E);
 
     fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize {
         let data_offset = self.buffer.len();
@@ -204,13 +183,13 @@ impl<E: ByteOrder, const A: usize> WritableBuffer<E, A> for BufferEncoder<E, A> 
 }
 
 #[derive(Default)]
-pub struct BufferDecoder<'a, E: ByteOrder, const A: usize> {
+pub struct BufferDecoder<'a, E: ByteOrder> {
     buffer: &'a [u8],
     _phantom_data: PhantomType<E>,
 }
 
 macro_rules! impl_byte_reader {
-    ($typ:ty, $endianness:ident, $alignment:expr) => {
+    ($typ:ty, $endianness:ident) => {
         paste! {
             pub fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
                 $endianness::[<read_ $typ>](&self.buffer[field_offset..])
@@ -219,7 +198,7 @@ macro_rules! impl_byte_reader {
     };
 }
 
-impl<'a, E: ByteOrder, const A: usize> BufferDecoder<'a, E, A> {
+impl<'a, E: ByteOrder> BufferDecoder<'a, E> {
     pub fn new(input: &'a [u8]) -> Self {
         Self {
             buffer: input,
@@ -234,15 +213,15 @@ impl<'a, E: ByteOrder, const A: usize> BufferDecoder<'a, E, A> {
         self.buffer[field_offset]
     }
 
-    impl_byte_reader!(i16, E, A);
-    impl_byte_reader!(u16, E, A);
-    impl_byte_reader!(i32, E, A);
-    impl_byte_reader!(u32, E, A);
-    impl_byte_reader!(i64, E, A);
-    impl_byte_reader!(u64, E, A);
+    impl_byte_reader!(i16, E);
+    impl_byte_reader!(u16, E);
+    impl_byte_reader!(i32, E);
+    impl_byte_reader!(u32, E);
+    impl_byte_reader!(i64, E);
+    impl_byte_reader!(u64, E);
 
     pub fn read_bytes_header(&self, field_offset: usize) -> (usize, usize) {
-        let header_item_size = header_item_size!(A);
+        let header_item_size = HEADER_ITEM_SIZE_DEFAULT;
         let bytes_offset = self.read_u32(field_offset) as usize;
         let bytes_length = self.read_u32(field_offset + header_item_size) as usize;
         (bytes_offset, bytes_length)
