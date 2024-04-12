@@ -389,48 +389,42 @@ mod tests {
         }
         define_codec_struct! {
             Endianness, ALIGNMENT,
+            pub struct InnerType {
+                 a:u32,
+                 // maps: HashMap<u32, ComplicatedType>,
+             }
+        }
+        define_codec_struct! {
+            Endianness, ALIGNMENT,
             pub struct ComplicatedType {
-                values: Vec<SimpleTypeU>,
-                maps: HashMap<u32, ComplicatedType>,
+                inner: InnerType,
+                a:bool,
+                values: Vec<u8>,
+                // maps: HashMap<u32, ComplicatedType>,
             }
         }
 
         let value0 = ComplicatedType {
-            values: vec![
-                SimpleTypeU {
-                    a: 100,
-                    b: 20,
-                    c: 3,
-                },
-                SimpleTypeU {
-                    a: u64::MAX,
-                    b: u32::MAX,
-                    c: u16::MAX,
-                },
-            ],
-            maps: HashMap::from([(
-                7,
-                ComplicatedType {
-                    values: vec![
-                        SimpleTypeU { a: 1, b: 2, c: 3 },
-                        SimpleTypeU { a: 4, b: 5, c: 6 },
-                    ],
-                    maps: Default::default(),
-                },
-            )]),
+            inner: InnerType { a: 10 },
+            a: true,
+            values: vec![0, 1, 2, 3, 4, 5],
+            // maps: HashMap::from([(
+            //     7,
+            //     ComplicatedType {
+            //         values: vec![5, 4, 3, 2, 1, 0],
+            //         maps: Default::default(),
+            //     },
+            // )]),
         };
         assert_eq!(
-            <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
-            <Vec<SimpleTypeU> as Encoder<Endianness, ALIGNMENT, Vec<SimpleTypeU>>>::HEADER_SIZE
-                + <HashMap::<u32, SimpleTypeU> as Encoder<
-                    Endianness,
-                    ALIGNMENT,
-                    HashMap::<u32, SimpleTypeU>,
-                >>::HEADER_SIZE
+            header_size!(ComplicatedType, Endianness, ALIGNMENT),
+            header_size!(InnerType, Endianness, ALIGNMENT)
+                + header_size!(bool, Endianness, ALIGNMENT)
+                + header_size!(Vec<u8>, Endianness, ALIGNMENT) // + header_size!(HashMap::<u32, SimpleTypeU>, Endianness, ALIGNMENT)
         );
         let encoded_value = {
             let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
-                <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE,
+                header_size!(ComplicatedType, Endianness, ALIGNMENT),
                 None,
             );
             call_encode!(
@@ -444,7 +438,13 @@ mod tests {
             buffer_encoder.finalize()
         };
         let fact = hex::encode(&encoded_value);
-        let expected = "02000000200000001c000000010000003c00000004000000400000003c0000006400000000000000140000000300ffffffffffffffffffffffffffff0700000002000000200000001c000000000000003c000000000000003c0000000000000001000000000000000200000003000400000000000000050000000600";
+        let expected = "\
+        0a000000\
+        01\
+        06000000\
+        11000000\
+        06000000\
+        000102030405";
         assert_eq!(expected, fact);
         let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
