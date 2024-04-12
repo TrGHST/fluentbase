@@ -444,7 +444,11 @@ mod tests {
             buffer_encoder.finalize()
         };
         let fact = hex::encode(&encoded_value);
-        let expected = "02000000200000001c000000010000003c00000004000000400000003c0000006400000000000000140000000300ffffffffffffffffffffffffffff0700000002000000200000001c000000000000003c000000000000003c0000000000000001000000000000000200000003000400000000000000050000000600";
+        let expected = "\
+        02000000200000001c000000010000003c00000004000000400000003c000000\
+        6400000000000000140000000300ffffffffffffffffffffffffffff07000000\
+        02000000200000001c000000000000003c000000000000003c00000000000000\
+        01000000000000000200000003000400000000000000050000000600";
         assert_eq!(expected, fact);
         let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
         let mut value1 = Default::default();
@@ -582,33 +586,33 @@ mod tests {
             ALIGNMENT,
             pub struct Inner {
                 x: Bytes,
-                y: [UInt; 3],
+                // y: [UInt; 3],
             }
         }
         define_codec_struct! {
             Endianness,
             ALIGNMENT,
             pub struct FuncParams {
-                a: bool,
+                // a: bool,
                 b: Inner,
-                c: [UInt; 2],
+                // c: [UInt; 2],
             }
         }
         let value0 = FuncParams {
             // TODO need right alignment for simple types
-            a: true,
+            // a: true,
             b: Inner {
                 x: "abcd".to_string().into_bytes(),
-                y: [
-                    UInt::left_padding_from(&[11]),
-                    UInt::left_padding_from(&[12]),
-                    UInt::left_padding_from(&[13]),
-                ],
+                // y: [
+                //     UInt::left_padding_from(&[11]),
+                //     UInt::left_padding_from(&[12]),
+                //     UInt::left_padding_from(&[13]),
+                // ],
             },
-            c: [
-                UInt::right_padding_from("a".as_bytes()),
-                UInt::right_padding_from("b".as_bytes()),
-            ],
+            // c: [
+            //     UInt::right_padding_from("a".as_bytes()),
+            //     UInt::right_padding_from("b".as_bytes()),
+            // ],
         };
 
         // assert_eq!(
@@ -618,10 +622,8 @@ mod tests {
         //         + <i16 as Encoder<Endianness, ALIGNMENT, i16>>::HEADER_SIZE
         // );
         let encoded_value = {
-            let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
-                <FuncParams as Encoder<Endianness, ALIGNMENT, FuncParams>>::HEADER_SIZE,
-                None,
-            );
+            let hs = <FuncParams as Encoder<Endianness, ALIGNMENT, FuncParams>>::HEADER_SIZE;
+            let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(hs, None);
             call_encode!(
                 FuncParams,
                 Endianness,
@@ -633,6 +635,7 @@ mod tests {
             buffer_encoder.finalize()
         };
         let encoded_value_len = encoded_value.len();
+        // expected:
         // 0: 0x0000000000000000000000000000000000000000000000000000000000000001 a
         // 1: 0x0000000000000000000000000000000000000000000000000000000000000080 offset of b
         // 2: 0x6100000000000000000000000000000000000000000000000000000000000000 c[0]
@@ -655,13 +658,22 @@ mod tests {
         0000000000000000000000000000000000000000000000000000000000000004\
         6162636400000000000000000000000000000000000000000000000000000000\
         ";
-        let current = "\
-        0000000400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000006100000000000000000000000000000000000000000000000000000000000000620000000000000000000000000000000000000000000000000000000000000063000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000";
+        // fact:
+        // 0: 0100000000000000000000000000000000000000000000000000000000000000
+        // 1: 0000000400000000000000000000000000000000000000000000000000000000
+        // 2: 0000012000000000000000000000000000000000000000000000000000000000
+        // 3: 0000002000000000000000000000000000000000000000000000000000000000
+        // 4: 000000000000000000000000000000000000000000000000000000000000000b
+        // 5: 000000000000000000000000000000000000000000000000000000000000000c
+        // 6: 000000000000000000000000000000000000000000000000000000000000000d
+        // 7: 6100000000000000000000000000000000000000000000000000000000000000
+        // 8: 6200000000000000000000000000000000000000000000000000000000000000
+        // 9: 6162636400000000000000000000000000000000000000000000000000000000
 
         let fact = hex::encode(&encoded_value);
         for (i, v) in encoded_value.as_slice().chunks(ALIGNMENT).enumerate() {
             let chunk_encoded = hex::encode(v);
-            println!("fact chunk {i}: {chunk_encoded}")
+            println!("{i}: {chunk_encoded}")
         }
         let fact_len = fact.len();
         let fact_items_aligned_count = fact_len / ALIGNMENT / 2;

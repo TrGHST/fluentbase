@@ -236,19 +236,21 @@ fn test_bytes_array_alignment_32_be() {
         0000002000000000000000000000000000000000000000000000000000000000\
         0000007f00000000000000000000000000000000000000000000000000000000\
         0001020304000000000000000000000000000000000000000000000000000000\
-        0506070809000000000000000000000000000000000000000000000000000000";
+        0506070809000000000000000000000000000000000000000000000000000000\
+        ";
     let fact = hex::encode(&buffer);
     assert_eq!(expected, fact);
     let decoder = BufferDecoder::<Endianness>::new(buffer.as_slice());
     let mut field_offset = 0;
     assert_eq!(0xbadcab1e, decoder.read_u32(field_offset));
     field_offset += header_item_size;
+    let fact = decoder.read_bytes(field_offset);
     assert_eq!(
         vec![
             0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0
         ],
-        decoder.read_bytes(field_offset).to_vec(),
+        fact.to_vec(),
     );
     field_offset += header_item_size * 2;
     assert_eq!(0xdeadbeef, decoder.read_u32(field_offset));

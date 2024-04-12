@@ -1,64 +1,123 @@
-use crate::{buffer::WritableBuffer, header_item_size, BufferDecoder, BufferEncoder, Encoder};
 use alloc::vec::Vec;
+
 use byteorder::ByteOrder;
 
-///
-/// We encode dynamic arrays as following:
-/// - header
-/// - + length - number of elements inside vector
-/// - + offset - offset inside structure
-/// - + size - number of encoded bytes
-/// - body
-/// - + raw bytes of the vector
-///
-/// We don't encode empty vectors, instead we store 0 as length,
-/// it helps to reduce empty vector size from 12 to 4 bytes.
-impl<E: ByteOrder, const A: usize, T: Default + Sized + Encoder<E, A, T>> Encoder<E, A, Vec<T>>
-    for Vec<T>
-{
-    // u32: length + values (bytes)
-    const HEADER_SIZE: usize = header_item_size!(A) * 3;
+use crate::buffer::ReadableBuffer;
+use crate::encoder::{FieldEncoder, SimpleEncoder};
+use crate::{
+    buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
+    header_item_size, header_size, if_align_default_then, simple_encoder_decode,
+    simple_encoder_encode,
+};
 
-    fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, field_offset: usize) {
-        encoder.write_u32(field_offset, self.len() as u32);
-        let size_of_t = core::mem::size_of::<T>();
-        let mut value_encoder = BufferEncoder::<E, A>::new(size_of_t * self.len(), None);
-        for (i, obj) in self.iter().enumerate() {
-            obj.encode(&mut value_encoder, i * size_of_t);
-        }
-        encoder.write_bytes(
-            field_offset + header_item_size!(A),
-            value_encoder.finalize().as_slice(),
+impl<E: ByteOrder, const A: usize> SimpleEncoder<E, A, Vec<u8>> for Vec<u8> {
+    fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
+        buffer.write_bytes(offset, &self);
+        if_align_default_then!(A, {}, {
+            let padding_count = dynamic_size_aligned_padding!(A, self.len());
+            buffer.fill_bytes(offset + self.len(), padding_count, 0);
+        });
+    }
+
+    fn decode(decoder: &ReadableBuffer<E>, offset: usize, result: &mut Vec<u8>) {
+        if_align_default_then!(
+            A,
+            {
+                *result = decoder.read_bytes(offset, result.len()).to_vec();
+            },
+            {
+                *result = decoder.read_bytes(offset, result.len()).to_vec();
+            }
         );
     }
+}
 
-    fn decode_header(
-        decoder: &mut BufferDecoder<E>,
-        field_offset: usize,
-        result: &mut Vec<T>,
-    ) -> (usize, usize) {
-        let count = decoder.read_u32(field_offset) as usize;
-        if count > result.capacity() {
-            result.reserve(count - result.capacity());
-        }
-        let (offset, length) = decoder.read_bytes_header(field_offset + header_item_size!(A));
-        (offset, length)
+impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, Vec<u8>> for Vec<u8> {
+    const HEADER_ITEM_SIZE: usize = header_item_size!(A);
+    const HEADER_SIZE: usize = header_size!(A, 3);
+
+    fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
+        // encode format: header(elems_count, data_offset, data_size) data(bytes)
+        let mut header_item_offset = offset;
+        let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        simple_encoder_encode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &(self.len() as u32)
+        );
+        header_item_offset += header_item_size;
+        // let data_offset = offset + field_encoder_const_val!(Self, E, A, HEADER_SIZE);
+        let data_offset = buffer.len();
+        simple_encoder_encode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &(data_offset as u32)
+        );
+        header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        let data_len = self.len();
+        simple_encoder_encode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &(data_len as u32)
+        );
+        header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        simple_encoder_encode!(Self, SimpleEncoder, E, A, buffer, header_item_offset, self);
     }
 
-    fn decode_body(decoder: &mut BufferDecoder<E>, field_offset: usize, result: &mut Vec<T>) {
-        let input_len = decoder.read_u32(field_offset) as usize;
-        if input_len == 0 {
-            result.clear();
-            return;
+    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+        // encode format: header(elems_count, data_offset, data_size) data(bytes)
+        let mut header_item_offset = offset;
+        let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        let mut elems_count = 0u32;
+        let mut data_offset = 0u32;
+        let mut data_size = 0u32;
+        simple_encoder_decode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &mut elems_count
+        );
+        header_item_offset += header_item_size;
+        simple_encoder_decode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &mut data_offset
+        );
+        header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        simple_encoder_decode!(
+            u32,
+            SimpleEncoder,
+            E,
+            A,
+            buffer,
+            header_item_offset,
+            &mut data_size
+        );
+        header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
+        let result_tail_offset = offset + data_size as usize;
+        if (*result).len() < result_tail_offset {
+            (*result).resize(result_tail_offset, 0);
         }
-        let input_bytes = decoder.read_bytes(field_offset + header_item_size!(A));
-        let mut value_decoder = BufferDecoder::new(input_bytes);
-        *result = (0..input_len)
-            .map(|i| {
-                let mut result = T::default();
-                T::decode_body(&mut value_decoder, T::HEADER_SIZE * i, &mut result);
-                result
-            })
-            .collect()
+        (*result)[offset..result_tail_offset]
+            .copy_from_slice(&buffer.read_bytes(header_item_offset, data_size as usize));
     }
 }

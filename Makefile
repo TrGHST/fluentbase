@@ -6,6 +6,15 @@ build:
 	cd examples && $(MAKE)
 	cd crates/genesis && $(MAKE)
 
+
+
+.PHONY: clean
+clean:
+	cargo clean
+	rm -rf examples/node_modules
+	rm -rf examples/bin/*.wat
+
+
 .PHONY: test
 test:
 	clear
