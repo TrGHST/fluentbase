@@ -5,7 +5,7 @@ use paste::paste;
 use phantom_type::PhantomType;
 
 use crate::encoder::{ALIGNMENT_DEFAULT, HEADER_ITEM_SIZE_DEFAULT};
-use crate::header_item_size;
+use crate::{align_number, header_item_size};
 
 pub trait WritableBuffer<E: ByteOrder> {
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
@@ -166,7 +166,7 @@ impl<E: ByteOrder, const A: usize> WritableBuffer<E> for BufferEncoder<E, A> {
         let data_len_aligned = if header_item_size == HEADER_ITEM_SIZE_DEFAULT {
             data_len
         } else {
-            (data_len + A - 1) / A * A
+            align_number!(data_len, A)
         };
 
         self.write_u32(field_offset, data_offset as u32);
