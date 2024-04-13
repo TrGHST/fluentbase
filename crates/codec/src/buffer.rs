@@ -4,8 +4,6 @@ use byteorder::ByteOrder;
 use paste::paste;
 use phantom_type::PhantomType;
 
-use crate::encoder::HEADER_ITEM_SIZE_DEFAULT;
-
 pub trait WritableBuffer<E: ByteOrder> {
     fn len(&self) -> usize;
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
