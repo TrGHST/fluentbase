@@ -4,10 +4,7 @@ mod tests {
     use byteorder::{BE, LE};
     use hashbrown::HashMap;
 
-    use crate::{
-        BufferDecoder, BufferEncoder, call_decode_body, call_encode, define_codec_struct,
-        Encoder, header_item_size, header_size,
-    };
+    use crate::{BufferDecoder, BufferEncoder, call_decode_body, call_encode, define_codec_struct, Encoder, FieldEncoder, header_item_size, encoder_field_val, WritableBuffer};
     use crate::encoder::{ALIGNMENT_32, ALIGNMENT_DEFAULT};
 
     #[test]
@@ -91,7 +88,7 @@ mod tests {
         let encoded_value = {
             let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
                 // <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::HEADER_SIZE,
-                header_size!(SimpleTypeU, Endianness, ALIGNMENT),
+                encoder_field_val!(SimpleTypeU, Endianness, ALIGNMENT, HEADER_SIZE),
                 None,
             );
             <SimpleTypeU as Encoder<Endianness, ALIGNMENT, SimpleTypeU>>::encode(
@@ -392,20 +389,66 @@ mod tests {
                  // maps: HashMap<u32, ComplicatedType>,
              }
         }
-        define_codec_struct! {
-            Endianness, ALIGNMENT,
-            pub struct ComplicatedType {
-                inner: InnerType, // hs 4
-                values1: Vec<u8>, // hs 12
-                a1: bool, // hs 1
-                values2: Vec<u8>, // hs 12
-                a2: bool, // hs 1
+        // define_codec_struct! {
+        //     Endianness, ALIGNMENT,
+        //     pub struct ComplicatedType {
+        //         values1: Vec<u8>, // hs 12
+        //         a1: bool, // hs 1
+        //         values2: Vec<u8>, // hs 12
+        //         a2: bool, // hs 1
+        //     }
+        // }
+        #[derive(Debug, Default, PartialEq, Clone)]
+        pub struct ComplicatedType {
+            pub values1: Vec<u8>,
+            pub a1: bool,
+            pub values2: Vec<u8>,
+            pub a2: bool
+        }
+        impl<E: ::byteorder::ByteOrder, const A: usize> Encoder<E, A, ComplicatedType> for ComplicatedType {
+            const HEADER_SIZE: usize = <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE + <bool as Encoder<E, A, bool>>::HEADER_SIZE + <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE + <bool as Encoder<E, A, bool>>::HEADER_SIZE;
+            fn encode<W: WritableBuffer<E>>(&self, encoder: &mut W, mut field_offset: usize) {
+                <Vec<u8> as Encoder<E, A, Vec<u8>>>::encode(&self.values1, encoder, field_offset);
+                field_offset += <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE;
+                <bool as Encoder<E, A, bool>>::encode(&self.a1, encoder, field_offset);
+                field_offset += <bool as Encoder<E, A, bool>>::HEADER_SIZE;
+                <Vec<u8> as Encoder<E, A, Vec<u8>>>::encode(&self.values2, encoder, field_offset);
+                field_offset += <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE;
+                <bool as Encoder<E, A, bool>>::encode(&self.a2, encoder, field_offset);
+            }
+            fn decode_header(decoder: &mut BufferDecoder<E>, mut field_offset: usize, result: &mut ComplicatedType) -> (usize, usize) {
+                <Vec<u8> as Encoder<E, A, Vec<u8>>>::decode_body(decoder, field_offset, &mut result.values1);
+                field_offset += <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE;
+                <bool as Encoder<E, A, bool>>::decode_body(decoder, field_offset, &mut result.a1);
+                field_offset += <bool as Encoder<E, A, bool>>::HEADER_SIZE;
+                <Vec<u8> as Encoder<E, A, Vec<u8>>>::decode_body(decoder, field_offset, &mut result.values2);
+                field_offset += <Vec<u8> as Encoder<E, A, Vec<u8>>>::HEADER_SIZE;
+                <bool as Encoder<E, A, bool>>::decode_body(decoder, field_offset, &mut result.a2);
+                (0, 0)
             }
         }
-        assert_eq!(30, <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::HEADER_SIZE);
+        impl From<Vec<u8>> for ComplicatedType {
+            fn from(value: Vec<u8>) -> Self {
+                let mut result = Self::default();
+                let mut buffer_decoder = BufferDecoder::<Endianness>::new(value.as_slice());
+                <ComplicatedType as Encoder<Endianness, ALIGNMENT, ComplicatedType>>::decode_body(&mut buffer_decoder, 0, &mut result);
+                result
+            }
+        }
+        pub trait IComplicatedType {
+            type Values1;
+            type A1;
+            type Values2;
+            type A2;
+        }
+        impl IComplicatedType for ComplicatedType {
+            type Values1 = FieldEncoder<Endianness, ALIGNMENT, Vec<u8>, { 0 }>;
+            type A1 = FieldEncoder<Endianness, ALIGNMENT, bool, { (0 + <Vec<u8> as Encoder<Endianness, ALIGNMENT, Vec<u8>>>::HEADER_SIZE) }>;
+            type Values2 = FieldEncoder<Endianness, ALIGNMENT, Vec<u8>, { ((0 + <Vec<u8> as Encoder<Endianness, ALIGNMENT, Vec<u8>>>::HEADER_SIZE) + <bool as Encoder<Endianness, ALIGNMENT, bool>>::HEADER_SIZE) }>;
+            type A2 = FieldEncoder<Endianness, ALIGNMENT, bool, { (((0 + <Vec<u8> as Encoder<Endianness, ALIGNMENT, Vec<u8>>>::HEADER_SIZE) + <bool as Encoder<Endianness, ALIGNMENT, bool>>::HEADER_SIZE) + <Vec<u8> as Encoder<Endianness, ALIGNMENT, Vec<u8>>>::HEADER_SIZE) }>;
+        }
 
         let value0 = ComplicatedType {
-            inner: InnerType { a: 10 },
             values1: vec![10, 11, 12, 13, 14, 15],
             a1: true,
             values2: vec![20, 21, 22, 23, 24, 25],
@@ -419,16 +462,16 @@ mod tests {
             // )]),
         };
         assert_eq!(
-            header_size!(ComplicatedType, Endianness, ALIGNMENT),
-            header_size!(InnerType, Endianness, ALIGNMENT)
-                + header_size!(Vec<u8>, Endianness, ALIGNMENT)
-                + header_size!(bool, Endianness, ALIGNMENT)
-                + header_size!(Vec<u8>, Endianness, ALIGNMENT)
-                + header_size!(bool, Endianness, ALIGNMENT)
+            encoder_field_val!(ComplicatedType, Endianness, ALIGNMENT, HEADER_SIZE),
+            0
+                // + header_size!(InnerType, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(Vec<u8>, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(bool, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(Vec<u8>, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(bool, Endianness, ALIGNMENT, HEADER_SIZE)
         );
         let encoded_value = {
-            let header_size = header_size!(ComplicatedType, Endianness, ALIGNMENT);
-            assert_eq!(header_size, 17);
+            let header_size = encoder_field_val!(ComplicatedType, Endianness, ALIGNMENT, HEADER_SIZE);
             let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
                 header_size,
                 None,
@@ -443,14 +486,23 @@ mod tests {
             );
             buffer_encoder.finalize()
         };
+        assert_eq!(12, <ComplicatedType as IComplicatedType>::Values2::FIELD_SIZE);
+        assert_eq!(13, <ComplicatedType as IComplicatedType>::Values2::FIELD_OFFSET);
         let fact = hex::encode(&encoded_value);
         let expected = "\
-        0a000000\
         06000000\
-        11000000\
+        1a000000\
         06000000\
+
         01\
-        000102030405\
+
+        06000000\
+        20000000\
+        06000000\
+
+        01\
+        0a0b0c0d0e0f\
+        141516171819\
         ";
         assert_eq!(expected, fact);
         let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
@@ -509,13 +561,14 @@ mod tests {
             // )]),
         };
         assert_eq!(
-            header_size!(ComplicatedType, Endianness, ALIGNMENT),
-            header_size!(InnerType, Endianness, ALIGNMENT)
-                + header_size!(bool, Endianness, ALIGNMENT)
-                + header_size!(Vec<u8>, Endianness, ALIGNMENT) // + header_size!(HashMap::<u32, SimpleTypeU>, Endianness, ALIGNMENT)
+            encoder_field_val!(ComplicatedType, Endianness, ALIGNMENT, HEADER_SIZE),
+            encoder_field_val!(InnerType, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(bool, Endianness, ALIGNMENT, HEADER_SIZE)
+                + encoder_field_val!(Vec<u8>, Endianness, ALIGNMENT, HEADER_SIZE)
+            // + header_size!(HashMap::<u32, SimpleTypeU>, Endianness, ALIGNMENT, HEADER_SIZE)
         );
         let encoded_value = {
-            let header_size = header_size!(ComplicatedType, Endianness, ALIGNMENT);
+            let header_size = encoder_field_val!(ComplicatedType, Endianness, ALIGNMENT, HEADER_SIZE);
             assert_eq!(header_size, 17);
             let mut buffer_encoder = BufferEncoder::<Endianness, ALIGNMENT>::new(
                 header_size,

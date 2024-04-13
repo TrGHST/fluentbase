@@ -1,10 +1,14 @@
-use crate::buffer::{BufferDecoder, BufferEncoder, FixedEncoder, WritableBuffer};
 use alloc::vec::Vec;
+
 use byteorder::ByteOrder;
 use phantom_type::PhantomType;
 
-pub const ALIGNMENT_DEFAULT: usize = 0; // 4 byte header items, not alignment for fields
-pub const ALIGNMENT_32: usize = 32; // 4 byte header items, not alignment for fields
+use crate::buffer::{BufferDecoder, BufferEncoder, WritableBuffer};
+
+pub const ALIGNMENT_DEFAULT: usize = 0;
+// 4 byte header items, not alignment for fields
+pub const ALIGNMENT_32: usize = 32;
+// 4 byte header items, not alignment for fields
 pub const HEADER_ITEM_SIZE_DEFAULT: usize = 4;
 
 #[macro_export]
@@ -26,9 +30,9 @@ macro_rules! header_item_size {
 }
 
 #[macro_export]
-macro_rules! header_size {
-    ($typ:ty, $endianness:ty, $alignment:expr) => {
-        <$typ as Encoder<$endianness, $alignment, $typ>>::HEADER_SIZE
+macro_rules! encoder_field_val {
+    ($typ:ty, $endianness:ty, $alignment:expr, $field_name:ident) => {
+        <$typ as Encoder<$endianness, $alignment, $typ>>::$field_name
     };
 }
 
@@ -68,11 +72,11 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
         Self::HEADER_SIZE
     }
 
-    fn encode_to_fixed<const N: usize>(&self, field_offset: usize) -> ([u8; N], usize) {
-        let mut buffer_encoder = FixedEncoder::<E, N>::new(Self::HEADER_SIZE);
-        self.encode(&mut buffer_encoder, field_offset);
-        buffer_encoder.finalize()
-    }
+    // fn encode_to_fixed<const N: usize>(&self, field_offset: usize) -> ([u8; N], usize) {
+    //     let mut buffer_encoder = FixedEncoder::<E, N>::new(Self::HEADER_SIZE);
+    //     self.encode(&mut buffer_encoder, field_offset);
+    //     buffer_encoder.finalize()
+    // }
     fn encode_to_vec(&self, field_offset: usize) -> Vec<u8> {
         let mut buffer_encoder = BufferEncoder::<E, A>::new(Self::HEADER_SIZE, None);
         self.encode(&mut buffer_encoder, field_offset);
@@ -100,7 +104,7 @@ pub struct FieldEncoder<
 >(PhantomType<E>, PhantomType<T>);
 
 impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T>, const FIELD_OFFSET: usize>
-    FieldEncoder<E, A, T, FIELD_OFFSET>
+FieldEncoder<E, A, T, FIELD_OFFSET>
 {
     pub const FIELD_OFFSET: usize = FIELD_OFFSET;
     pub const FIELD_SIZE: usize = T::HEADER_SIZE;
