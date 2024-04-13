@@ -3,36 +3,42 @@ use alloc::vec::Vec;
 use byteorder::ByteOrder;
 
 use crate::buffer::ReadableBuffer;
-use crate::encoder::{FieldEncoder, SimpleEncoder};
+use crate::encoder::{FieldEncoder, SimpleEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
     header_item_size, header_size, if_align_default_then, simple_encoder_decode,
-    simple_encoder_encode,
+    simple_encoder_encode, size_of,
 };
 
-impl<E: ByteOrder, const A: usize> SimpleEncoder<E, A, Vec<u8>> for Vec<u8> {
+impl<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, { ALIGN_DEFAULT }, T>>
+    SimpleEncoder<E, A, Vec<T>> for Vec<T>
+{
     fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
-        buffer.write_bytes(offset, &self);
+        let item_size = size_of!(T);
+        let len = item_size * self.len();
+        buffer.fill_bytes(offset, len, 0);
+        for (i, v) in self.iter().enumerate() {
+            v.encode(buffer, offset + i * item_size);
+        }
         if_align_default_then!(A, {}, {
-            let padding_count = dynamic_size_aligned_padding!(A, self.len());
+            let padding_count = dynamic_size_aligned_padding!(A, len);
             buffer.fill_bytes(offset + self.len(), padding_count, 0);
         });
     }
 
-    fn decode(decoder: &ReadableBuffer<E>, offset: usize, result: &mut Vec<u8>) {
-        if_align_default_then!(
-            A,
-            {
-                *result = decoder.read_bytes(offset, result.len()).to_vec();
-            },
-            {
-                *result = decoder.read_bytes(offset, result.len()).to_vec();
-            }
-        );
+    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Vec<T>) {
+        for (i, v) in (*result).iter_mut().enumerate() {
+            T::decode(buffer, offset + i * size_of!(T), v);
+        }
     }
 }
 
-impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, Vec<u8>> for Vec<u8> {
+impl<
+        E: ByteOrder,
+        const A: usize,
+        T: Sized + Clone + Default + SimpleEncoder<E, { ALIGN_DEFAULT }, T>,
+    > FieldEncoder<E, A, Vec<T>> for Vec<T>
+{
     const HEADER_ITEM_SIZE: usize = header_item_size!(A);
     const HEADER_SIZE: usize = header_size!(A, 3);
 
@@ -73,7 +79,8 @@ impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, Vec<u8>> for Vec<u8> {
             &(data_len as u32)
         );
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-        simple_encoder_encode!(Self, SimpleEncoder, E, A, buffer, header_item_offset, self);
+        // simple_encoder_encode!(Self, SimpleEncoder, E, A, buffer, header_item_offset, self);
+        <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, buffer.len());
     }
 
     fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
@@ -115,9 +122,11 @@ impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, Vec<u8>> for Vec<u8> {
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
         let result_tail_offset = offset + data_size as usize;
         if (*result).len() < result_tail_offset {
-            (*result).resize(result_tail_offset, 0);
+            (*result).resize(result_tail_offset, T::default());
         }
-        (*result)[offset..result_tail_offset]
-            .copy_from_slice(&buffer.read_bytes(header_item_offset, data_size as usize));
+        let item_size = size_of!(T);
+        for (i, v) in (*result).iter_mut().enumerate() {
+            T::decode(buffer, data_offset as usize + i * item_size, v);
+        }
     }
 }
