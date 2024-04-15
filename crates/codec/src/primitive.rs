@@ -3,7 +3,7 @@ use paste::paste;
 
 use crate::buffer::ReadableBuffer;
 use crate::encoder::{Serializable, SimpleEncoder};
-use crate::{fixed_type_size_aligned_padding, size_of, WritableBuffer};
+use crate::{fixed_type_size_aligned, fixed_type_size_aligned_padding, size_of, WritableBuffer};
 
 // macro_rules! impl_simple_encoder {
 //     ($typ:ty) => {
@@ -38,14 +38,11 @@ macro_rules! impl_serializable {
         paste! {
             impl<E: ByteOrder, const A: usize> Serializable<E, A, $typ> for $typ {
                 fn serialize<W: WritableBuffer<E>>(&self, b: &mut W, offset: usize) {
-                    // let padding = fixed_type_size_aligned_padding!(A, Self);
-                    // b.fill_bytes(offset, padding, 0);
-                    b.[<write_ $typ>](offset/* + padding*/, *self);
+                    b.[<write_ $typ>](offset, *self);
                 }
 
                 fn deserialize(b: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
-                    // let padding = fixed_type_size_aligned_padding!(A, Self);
-                    *result = b.[<read_ $typ>](offset/* + padding*/);
+                    *result = b.[<read_ $typ>](offset);
                 }
             }
         }
@@ -67,12 +64,23 @@ impl<E: ByteOrder, const A: usize, const COUNT: usize, ITEM: Sized + Serializabl
         for (i, item) in self.iter().enumerate() {
             item.serialize(b, offset + i * size_of!(ITEM));
         }
+        // let padding = fixed_type_size_aligned_padding!(A, ITEM);
+        // for (i, item) in self.iter().enumerate() {
+        //     b.fill_bytes(offset, padding, 0);
+        //     let item_offset = offset + padding + i * (padding + size_of!(ITEM));
+        //     item.serialize(b, item_offset);
+        // }
     }
 
     fn deserialize(b: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
         for i in 0..COUNT {
             ITEM::deserialize(b, offset + i * size_of!(ITEM), &mut result[i]);
         }
+        // let padding = fixed_type_size_aligned_padding!(A, Self);
+        // for i in 0..COUNT {
+        //     let item_offset = offset + padding + i * (padding + size_of!(ITEM));
+        //     ITEM::deserialize(b, item_offset, &mut result[i]);
+        // }
     }
 }
 

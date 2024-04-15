@@ -6,8 +6,8 @@ use crate::buffer::ReadableBuffer;
 use crate::encoder::{FieldEncoder, Serializable, SimpleEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
-    header_item_size, header_size, if_align_default_then, simple_encoder_decode,
-    simple_encoder_encode, size_of,
+    fixed_type_size_aligned, fixed_type_size_aligned_padding, header_item_size, header_size,
+    if_align_default_then, simple_encoder_decode, simple_encoder_encode, size_of,
 };
 
 macro_rules! impl_simple_encoder_vec {
@@ -59,16 +59,46 @@ impl<
         const A: usize,
         const COUNT: usize,
         ITEM: Sized + Clone + Serializable<E, A, ITEM>,
-    > SimpleEncoder<E, A, Vec<[ITEM; COUNT]>> for Vec<[ITEM; COUNT]>
-where
-    [ITEM; COUNT]: Default,
+    > SimpleEncoder<E, A, [ITEM; COUNT]> for [ITEM; COUNT]
 {
     fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
-        let elem_size = size_of!([ITEM; COUNT]);
+        let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
+        let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
+        let bytes_len = elem_size * self.len();
+        buffer.fill_bytes(offset, bytes_len, 0);
+        let elem_offset = offset + elem_padding + elem_size;
+        <[ITEM; COUNT]>::serialize(self, buffer, elem_offset);
+        if_align_default_then!(A, {}, {
+            let padding_count = dynamic_size_aligned_padding!(A, bytes_len);
+            buffer.fill_bytes(offset + self.len() * elem_size, padding_count, 0);
+        });
+    }
+
+    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+        let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
+        let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
+        let elem_offset = offset + elem_padding + elem_size;
+        <[ITEM; COUNT]>::deserialize(buffer, elem_offset, result);
+    }
+}
+
+impl<
+        E: ByteOrder,
+        const A: usize,
+        const COUNT: usize,
+        ITEM: Sized + Clone + Serializable<E, A, ITEM>,
+    > SimpleEncoder<E, A, Vec<[ITEM; COUNT]>> for Vec<[ITEM; COUNT]>
+where
+    [ITEM; COUNT]: Default, // + SimpleEncoder<E, A, [ITEM; COUNT]>
+{
+    fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
+        let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
+        let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
         let bytes_len = elem_size * self.len();
         buffer.fill_bytes(offset, bytes_len, 0);
         for (i, v) in self.iter().enumerate() {
-            <[ITEM; COUNT]>::serialize(v, buffer, offset + i * elem_size);
+            let elem_offset = offset + elem_padding + i * elem_size;
+            <[ITEM; COUNT]>::serialize(v, buffer, elem_offset);
         }
         if_align_default_then!(A, {}, {
             let padding_count = dynamic_size_aligned_padding!(A, bytes_len);
@@ -77,11 +107,13 @@ where
     }
 
     fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
-        let elem_size = size_of!([ITEM; COUNT]);
+        let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
+        let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
         let elem_count = (buffer.len() - offset) / elem_size;
         result.resize(elem_count, <[ITEM; COUNT]>::default());
         for i in 0..elem_count {
-            <[ITEM; COUNT]>::deserialize(buffer, offset + i * elem_size, &mut result[i]);
+            let elem_offset = offset + elem_padding + i * elem_size;
+            <[ITEM; COUNT]>::deserialize(buffer, elem_offset, &mut result[i]);
         }
     }
 }
@@ -171,108 +203,6 @@ where
             &mut data_size
         );
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-        let result_tail_offset = offset + data_size as usize;
-        let item_size = size_of!(T);
         <Self as SimpleEncoder<E, A, Self>>::decode(buffer, data_offset as usize, result);
     }
 }
-
-// macro_rules! impl_field_encoder_primitive {
-//     ($typ:ty) => {
-//         impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, Vec<$typ>> for Vec<$typ> {
-//             const HEADER_ITEM_SIZE: usize = header_item_size!(A);
-//             const HEADER_SIZE: usize = header_size!(A, 3);
-//
-//             fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
-//                 // encode format: header(elems_count, data_offset, data_size) data(bytes)
-//                 let elems_count = self.len();
-//                 let data_size = elems_count * $crate::size_of!($typ);
-//                 let data_offset = buffer.len();
-//                 let mut header_item_offset = offset;
-//                 let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 simple_encoder_encode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &(self.len() as u32)
-//                 );
-//                 header_item_offset += header_item_size;
-//                 simple_encoder_encode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &(data_offset as u32)
-//                 );
-//                 header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 simple_encoder_encode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &(data_size as u32)
-//                 );
-//                 header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, buffer.len());
-//             }
-//
-//             fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
-//                 // encode format: header(elems_count, data_offset, data_size) data(bytes)
-//                 let mut header_item_offset = offset;
-//                 let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 let mut elems_count = 0u32;
-//                 let mut data_offset = 0u32;
-//                 let mut data_size = 0u32;
-//                 simple_encoder_decode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &mut elems_count
-//                 );
-//                 header_item_offset += header_item_size;
-//                 simple_encoder_decode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &mut data_offset
-//                 );
-//                 header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 simple_encoder_decode!(
-//                     u32,
-//                     SimpleEncoder,
-//                     E,
-//                     A,
-//                     buffer,
-//                     header_item_offset,
-//                     &mut data_size
-//                 );
-//                 header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-//                 let result_tail_offset = offset + data_size as usize;
-//                 let item_size = $crate::size_of!($typ);
-//                 <Self as SimpleEncoder<E, A, Self>>::decode(buffer, data_offset as usize, result);
-//             }
-//         }
-//     };
-// }
-//
-// impl_field_encoder_primitive!(u8);
-// impl_field_encoder_primitive!(u16);
-// impl_field_encoder_primitive!(u32);
-// impl_field_encoder_primitive!(u64);
-// impl_field_encoder_primitive!(i8);
-// impl_field_encoder_primitive!(i16);
-// impl_field_encoder_primitive!(i32);
-// impl_field_encoder_primitive!(i64);
