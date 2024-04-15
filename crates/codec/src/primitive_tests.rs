@@ -1,10 +1,8 @@
+use byteorder::{BE, LE};
+
 use crate::buffer::ReadableBuffer;
 use crate::encoder::{SimpleEncoder, ALIGN_32, ALIGN_DEFAULT};
-use crate::{
-    dynamic_buffer_decode, dynamic_buffer_encode, dynamic_size_aligned, fixed_type_size_aligned,
-    size_aligned, DynamicBuffer,
-};
-use byteorder::{BE, LE};
+use crate::{dynamic_buffer_decode, dynamic_buffer_encode, fixed_type_size_aligned, DynamicBuffer};
 
 #[test]
 fn test_simple_encoder_le_ad_i32() {

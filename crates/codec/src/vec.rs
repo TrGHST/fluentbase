@@ -6,10 +6,10 @@ use crate::buffer::ReadableBuffer;
 use crate::encoder::{FieldEncoder, SimpleEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
-    header_item_size, header_size, simple_encoder_decode, simple_encoder_encode, size_of,
+    header_item_size, header_size, simple_encoder_decode, simple_encoder_encode,
 };
 
-macro_rules! impl_simple_encoder_primitive {
+macro_rules! impl_simple_encoder_vec {
     ($typ:ty) => {
         impl<E: ByteOrder, const A: usize> SimpleEncoder<E, A, Vec<$typ>> for Vec<$typ> {
             fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
@@ -44,14 +44,14 @@ macro_rules! impl_simple_encoder_primitive {
     };
 }
 
-impl_simple_encoder_primitive!(u8);
-impl_simple_encoder_primitive!(u16);
-impl_simple_encoder_primitive!(u32);
-impl_simple_encoder_primitive!(u64);
-impl_simple_encoder_primitive!(i8);
-impl_simple_encoder_primitive!(i16);
-impl_simple_encoder_primitive!(i32);
-impl_simple_encoder_primitive!(i64);
+impl_simple_encoder_vec!(u8);
+impl_simple_encoder_vec!(u16);
+impl_simple_encoder_vec!(u32);
+impl_simple_encoder_vec!(u64);
+impl_simple_encoder_vec!(i8);
+impl_simple_encoder_vec!(i16);
+impl_simple_encoder_vec!(i32);
+impl_simple_encoder_vec!(i64);
 
 macro_rules! impl_field_encoder_primitive {
     ($typ:ty) => {

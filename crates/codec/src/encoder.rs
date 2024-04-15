@@ -7,6 +7,12 @@ pub const ALIGN_DEFAULT: usize = 0;
 pub const ALIGN_32: usize = 32;
 pub const HEADER_ITEM_SIZE_DEFAULT: usize = 4;
 
+pub trait Serializable<E: ByteOrder, const A: usize, T: Sized> {
+    fn serialize<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize);
+
+    fn deserialize(buffer: &ReadableBuffer<E>, offset: usize, result: &mut T);
+}
+
 pub trait SimpleEncoder<E: ByteOrder, const A: usize, T: Sized> {
     fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize);
 
