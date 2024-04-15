@@ -11,7 +11,7 @@ mod encoder;
 // mod evm;
 // mod hash;
 // mod macros;
-mod encoder_helpers;
+mod encoder_macros;
 #[cfg(test)]
 mod encoder_tests;
 mod macros_common;

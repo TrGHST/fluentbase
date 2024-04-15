@@ -13,7 +13,7 @@ macro_rules! impl_simple_encoder {
                     b.[<write_ $typ>](offset + padding, *self);
                 }
 
-                fn decode(b: & $crate::buffer::ReadableBuffer<E>, offset: usize, result: &mut $typ) {
+                fn decode(b: &$crate::buffer::ReadableBuffer<E>, offset: usize, result: &mut $typ) {
                     let padding = $crate::fixed_type_size_aligned_padding!(A, $typ);
                     *result = b.[<read_ $typ>](offset + padding);
                 }
@@ -26,6 +26,7 @@ impl_simple_encoder!(u8);
 impl_simple_encoder!(u16);
 impl_simple_encoder!(u32);
 impl_simple_encoder!(u64);
+impl_simple_encoder!(i8);
 impl_simple_encoder!(i16);
 impl_simple_encoder!(i32);
 impl_simple_encoder!(i64);

@@ -89,6 +89,13 @@ macro_rules! dynamic_size_aligned {
             $crate::size_aligned!($alignment, $size)
         }
     };
+    ($alignment:expr, $len:expr, $item_ty:ty) => {
+        if $crate::is_align_default!($alignment) {
+            $len
+        } else {
+            $crate::size_aligned!($alignment, $len, $item_ty)
+        }
+    };
 }
 
 #[macro_export]

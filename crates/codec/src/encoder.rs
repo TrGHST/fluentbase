@@ -1,36 +1,11 @@
 use byteorder::ByteOrder;
-use std::mem::size_of;
 
 use crate::buffer::{ReadableBuffer, WritableBuffer};
-use crate::{header_item_size, size_of};
+use crate::header_item_size;
 
-pub const ALIGN_DEFAULT: usize = 0; // 4 byte header items, not alignment for fields
-pub const ALIGN_32: usize = 32; // 4 byte header items, not alignment for fields
+pub const ALIGN_DEFAULT: usize = 0;
+pub const ALIGN_32: usize = 32;
 pub const HEADER_ITEM_SIZE_DEFAULT: usize = 4;
-
-pub trait BytesSize {
-    fn bytes_size(&self) -> usize;
-}
-
-impl<T: Sized> BytesSize for Vec<T> {
-    fn bytes_size(&self) -> usize {
-        return self.len() * size_of!(T);
-    }
-}
-#[macro_export]
-macro_rules! impl_bytes_size {
-    ($typ:ty) => {
-        impl BytesSize for $typ {
-            fn bytes_size(&self) -> usize {
-                return $crate::size_of!($typ);
-            }
-        }
-    };
-}
-impl_bytes_size!(u8);
-impl_bytes_size!(u16);
-impl_bytes_size!(u32);
-impl_bytes_size!(u64);
 
 pub trait SimpleEncoder<E: ByteOrder, const A: usize, T: Sized> {
     fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize);
