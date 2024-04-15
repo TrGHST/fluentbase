@@ -64,17 +64,14 @@ impl<E: ByteOrder, const A: usize, const COUNT: usize, ITEM: Sized + Serializabl
     Serializable<E, A, [ITEM; COUNT]> for [ITEM; COUNT]
 {
     fn serialize<W: WritableBuffer<E>>(&self, b: &mut W, offset: usize) {
-        // let padding = fixed_type_size_aligned_padding!(A, Self);
-        // b.fill_bytes(offset, padding, 0);
         for (i, item) in self.iter().enumerate() {
             item.serialize(b, offset + i * size_of!(ITEM));
         }
     }
 
     fn deserialize(b: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
-        // let padding = fixed_type_size_aligned_padding!(A, Self);
-        for (i, v) in result.iter_mut().enumerate() {
-            ITEM::deserialize(b, offset + i * size_of!(ITEM), v);
+        for i in 0..COUNT {
+            ITEM::deserialize(b, offset + i * size_of!(ITEM), &mut result[i]);
         }
     }
 }
