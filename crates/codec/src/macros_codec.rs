@@ -11,13 +11,13 @@ macro_rules! derive_header_size {
 #[macro_export]
 macro_rules! derive_encode {
     () => ();
-    ($endianness:ty, $alignment:ident, $self:ident, $buffer:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        <$typ as Encoder<$endianness, $alignment, $typ >>::encode(&$self.$val, $buffer, $field_offset);
+    ($endianness:ty, $alignment:ident, $bytes_written:ident, $self:ident, $buffer:expr, $field_offset:expr, $val:ident: $typ:ty) => {
+        $bytes_written += <$typ as Encoder<$endianness, $alignment, $typ >>::encode(&$self.$val, $buffer, $field_offset);
     };
-    ($endianness:ty, $alignment:ident, $self:ident, $buffer:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
-        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $val_x:$typ_x);
+    ($endianness:ty, $alignment:ident, $bytes_written:ident, $self:ident, $buffer:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
+        $crate::derive_encode!($endianness, $alignment, $bytes_written, $self, $buffer, $field_offset, $val_x:$typ_x);
         $field_offset += $crate::derive_header_size!($endianness, $alignment, $val_x:$typ_x);
-        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $($val_y:$typ_y),+);
+        $crate::derive_encode!($endianness, $alignment, $bytes_written, $self, $buffer, $field_offset, $($val_y:$typ_y),+);
     };
 }
 #[macro_export]
@@ -59,8 +59,10 @@ macro_rules! define_codec_struct {
         }
         impl<E: ::byteorder::ByteOrder, const A: usize> $crate::Encoder<E, A, $struct_type> for $struct_type {
             const HEADER_SIZE: usize = $crate::derive_header_size!(E, A, $($element:$ty),*);
-            fn encode<W: $crate::WritableBuffer<E>>(&self, buffer: &mut W, mut field_offset: usize) {
-                $crate::derive_encode!(E, A, self, buffer, field_offset, $($element:$ty),*);
+            fn encode<W: $crate::WritableBuffer<E>>(&self, buffer: &mut W, mut field_offset: usize) -> usize {
+                let mut bytes_written = 0;
+                $crate::derive_encode!(E, A, bytes_written, self, buffer, field_offset, $($element:$ty),*);
+                bytes_written
             }
             fn decode<B: $crate::ReadableBuffer<E>>(buffer: &B, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
                 $crate::derive_decode!(E, A, result, buffer, field_offset, $($element:$ty),*);

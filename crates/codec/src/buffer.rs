@@ -6,16 +6,16 @@ use phantom_type::PhantomType;
 
 pub trait WritableBuffer<E: ByteOrder> {
     fn len(&self) -> usize;
-    fn write_bool(&mut self, field_offset: usize, value: bool) -> usize;
-    fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
-    fn write_u8(&mut self, field_offset: usize, value: u8) -> usize;
-    fn write_i16(&mut self, field_offset: usize, value: i16) -> usize;
-    fn write_u16(&mut self, field_offset: usize, value: u16) -> usize;
-    fn write_i32(&mut self, field_offset: usize, value: i32) -> usize;
-    fn write_u32(&mut self, field_offset: usize, value: u32) -> usize;
-    fn write_i64(&mut self, field_offset: usize, value: i64) -> usize;
-    fn write_u64(&mut self, field_offset: usize, value: u64) -> usize;
-    fn write_bytes(&mut self, field_offset: usize, bytes: &[u8]) -> usize;
+    fn write_bool(&mut self, offset: usize, value: bool) -> usize;
+    fn write_i8(&mut self, offset: usize, value: i8) -> usize;
+    fn write_u8(&mut self, offset: usize, value: u8) -> usize;
+    fn write_i16(&mut self, offset: usize, value: i16) -> usize;
+    fn write_u16(&mut self, offset: usize, value: u16) -> usize;
+    fn write_i32(&mut self, offset: usize, value: i32) -> usize;
+    fn write_u32(&mut self, offset: usize, value: u32) -> usize;
+    fn write_i64(&mut self, offset: usize, value: i64) -> usize;
+    fn write_u64(&mut self, offset: usize, value: u64) -> usize;
+    fn write_bytes(&mut self, offset: usize, bytes: &[u8]) -> usize;
     fn fill_bytes(&mut self, offset: usize, count: usize, value: u8) -> usize;
 }
 
@@ -100,23 +100,23 @@ impl<E: ByteOrder> WritableBuffer<E> for WritableBufferImpl<E> {
 macro_rules! impl_byte_reader {
     ($typ:ty, $endianness:ident) => {
         paste! {
-            fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
-                $endianness::[<read_ $typ>](&self.buffer[field_offset..])
+            fn [<read_ $typ>](&self, offset: usize) -> $typ {
+                $endianness::[<read_ $typ>](&self.buffer[offset..])
             }
         }
     };
 }
 
 pub trait ReadableBuffer<E: ByteOrder> {
-    fn read_bool(&self, field_offset: usize) -> bool;
-    fn read_i8(&self, field_offset: usize) -> i8;
-    fn read_u8(&self, field_offset: usize) -> u8;
-    fn read_i16(&self, field_offset: usize) -> i16;
-    fn read_u16(&self, field_offset: usize) -> u16;
-    fn read_i32(&self, field_offset: usize) -> i32;
-    fn read_u32(&self, field_offset: usize) -> u32;
-    fn read_i64(&self, field_offset: usize) -> i64;
-    fn read_u64(&self, field_offset: usize) -> u64;
+    fn read_bool(&self, offset: usize) -> bool;
+    fn read_i8(&self, offset: usize) -> i8;
+    fn read_u8(&self, offset: usize) -> u8;
+    fn read_i16(&self, offset: usize) -> i16;
+    fn read_u16(&self, offset: usize) -> u16;
+    fn read_i32(&self, offset: usize) -> i32;
+    fn read_u32(&self, offset: usize) -> u32;
+    fn read_i64(&self, offset: usize) -> i64;
+    fn read_u64(&self, offset: usize) -> u64;
 
     fn read_bytes(&self, offset: usize, len: usize) -> &[u8];
 
@@ -140,14 +140,14 @@ impl<'a, E: ByteOrder> ReadableBufferImpl<'a, E> {
     }
 }
 impl<'a, E: ByteOrder> ReadableBuffer<E> for ReadableBufferImpl<'a, E> {
-    fn read_bool(&self, field_offset: usize) -> bool {
-        self.buffer[field_offset] > 0
+    fn read_bool(&self, offset: usize) -> bool {
+        self.buffer[offset] > 0
     }
-    fn read_i8(&self, field_offset: usize) -> i8 {
-        self.buffer[field_offset] as i8
+    fn read_i8(&self, offset: usize) -> i8 {
+        self.buffer[offset] as i8
     }
-    fn read_u8(&self, field_offset: usize) -> u8 {
-        self.buffer[field_offset]
+    fn read_u8(&self, offset: usize) -> u8 {
+        self.buffer[offset]
     }
 
     impl_byte_reader!(i16, E);
