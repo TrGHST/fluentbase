@@ -4,7 +4,7 @@ extern crate alloc;
 extern crate core;
 
 pub use crate::buffer::{DynamicBuffer, ReadableBuffer, WritableBuffer};
-pub use crate::encoder::{Encoder, FieldEncoder, ALIGN_32, ALIGN_DEFAULT};
+pub use crate::encoder::{Encoder, FieldEncoder, FieldMeta, ALIGN_32, ALIGN_DEFAULT};
 
 mod buffer;
 mod empty;

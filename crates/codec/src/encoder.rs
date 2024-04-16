@@ -52,23 +52,19 @@ pub trait FieldEncoder<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E,
 #[macro_export]
 macro_rules! field_encoder_const_val {
     ($self_ty:ty, $endianness:ident, $align:ident, $const_ident:ident) => {
-        <$self_ty as FieldEncoder<$endianness, $align, $self_ty>>::$const_ident
+        <$self_ty as $crate::FieldEncoder<$endianness, $align, $self_ty>>::$const_ident
     };
 }
 
 #[macro_export]
-macro_rules! field_encoder_encode {
-    ($typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val_in:expr $(,)?) => {
-        <$typ as $crate::encoder::FieldEncoder<$endianness, $align, $typ>>::encode(
+macro_rules! field_encoder_call {
+    (@enc $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val_in:expr $(,)?) => {
+        <$typ as $crate::FieldEncoder<$endianness, $align, $typ>>::encode(
             $val_in, $buffer, $offset,
         );
     };
-}
-
-#[macro_export]
-macro_rules! field_encoder_decode {
-    ($typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $out_out:expr $(,)?) => {
-        <$typ as $crate::encoder::FieldEncoder<$endianness, $align, $typ>>::decode(
+    (@dec $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $out_out:expr $(,)?) => {
+        <$typ as $crate::FieldEncoder<$endianness, $align, $typ>>::decode(
             $buffer, $offset, $out_out,
         );
     };
@@ -98,38 +94,42 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
     }
 }
 
-// pub struct FieldMeta<
-//     E: ByteOrder,
-//     const A: usize,
-//     T: Sized + FieldEncoder<E, A, T>,
-//     const FIELD_OFFSET: usize,
-// >(PhantomType<E>, PhantomType<T>);
-//
-// impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T>, const FIELD_OFFSET: usize>
-//     FieldMeta<E, A, T, FIELD_OFFSET>
-// {
-//     pub const FIELD_OFFSET: usize = FIELD_OFFSET;
-//     pub const FIELD_SIZE: usize = T::HEADER_SIZE;
-//
-//     pub fn decode_field_header(buffer: &[u8], result: &mut T) -> (usize, usize) {
-//         Self::decode_field_header_at(buffer, Self::FIELD_OFFSET, result)
-//     }
-//
-//     pub fn decode_field_header_at(
-//         buffer: &[u8],
-//         field_offset: usize,
-//         result: &mut T,
-//     ) -> (usize, usize) {
-//         let mut buffer_decoder = ReadableBuffer::new(buffer);
-//         T::decode_header(&mut buffer_decoder, field_offset, result)
-//     }
-//
-//     pub fn decode_field_body(buffer: &[u8], result: &mut T) {
-//         Self::decode_field_body_at(buffer, Self::FIELD_OFFSET, result)
-//     }
-//
-//     pub fn decode_field_body_at(buffer: &[u8], field_offset: usize, result: &mut T) {
-//         let mut buffer_decoder = ReadableBuffer::new(buffer);
-//         T::decode_body(&mut buffer_decoder, field_offset, result)
-//     }
-// }
+pub struct FieldMeta<
+    E: ByteOrder,
+    const A: usize,
+    T: Sized + SimpleEncoder<E, A, T> + FieldEncoder<E, A, T>,
+    const FIELD_OFFSET: usize,
+>(PhantomType<E>, PhantomType<T>);
+
+impl<
+        E: ByteOrder,
+        const A: usize,
+        T: Sized + SimpleEncoder<E, A, T> + FieldEncoder<E, A, T> + Encoder<E, A, T>,
+        const FIELD_OFFSET: usize,
+    > FieldMeta<E, A, T, FIELD_OFFSET>
+{
+    pub const FIELD_OFFSET: usize = FIELD_OFFSET;
+    pub const FIELD_SIZE: usize = <T as FieldEncoder<E, A, T>>::HEADER_SIZE;
+
+    pub fn decode_field_header(buffer: &[u8], result: &mut T) -> (usize, usize) {
+        Self::decode_field_header_at(buffer, Self::FIELD_OFFSET, result)
+    }
+
+    pub fn decode_field_header_at(
+        buffer: &[u8],
+        field_offset: usize,
+        result: &mut T,
+    ) -> (usize, usize) {
+        let mut buffer_decoder = ReadableBuffer::new(buffer);
+        T::decode_header(&mut buffer_decoder, field_offset, result)
+    }
+
+    pub fn decode_field_body(buffer: &[u8], result: &mut T) {
+        Self::decode_field_body_at(buffer, Self::FIELD_OFFSET, result)
+    }
+
+    pub fn decode_field_body_at(buffer: &[u8], field_offset: usize, result: &mut T) {
+        let mut buffer_decoder = ReadableBuffer::new(buffer);
+        T::decode_body(&mut buffer_decoder, field_offset, result)
+    }
+}

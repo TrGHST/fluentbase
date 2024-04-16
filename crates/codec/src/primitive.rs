@@ -3,7 +3,9 @@ use paste::paste;
 
 use crate::buffer::ReadableBuffer;
 use crate::encoder::{Serializable, SimpleEncoder};
-use crate::{fixed_type_size_aligned, fixed_type_size_aligned_padding, size_of, WritableBuffer};
+use crate::{
+    fixed_type_size_aligned_padding, header_item_size, size_of, FieldEncoder, WritableBuffer,
+};
 
 // macro_rules! impl_simple_encoder {
 //     ($typ:ty) => {
@@ -110,33 +112,42 @@ impl_simple_encoder_primitive!(i16);
 impl_simple_encoder_primitive!(i32);
 impl_simple_encoder_primitive!(i64);
 
-// impl<E: ByteOrder, const A: usize, T: Sized + Serializable<E, A, T>> SimpleEncoder<E, A, T> for T {
-//     fn encode<W: WritableBuffer<E>>(&self, b: &mut W, offset: usize) {
-//         let padding = fixed_type_size_aligned_padding!(A, T);
-//         b.fill_bytes(offset, padding, 0);
-//         <T as Serializable<E, A, T>>::serialize(&self, b, offset + padding);
-//     }
-//
-//     fn decode(b: &ReadableBuffer<E>, offset: usize, result: &mut T) {
-//         let padding = fixed_type_size_aligned_padding!(A, Self);
-//         T::deserialize(b, offset + padding, result);
-//     }
-// }
-
 #[macro_export]
-macro_rules! dynamic_buffer_encode {
-    ($encoder_type:ident, $end:ident, $align:ident, $typ:ty, $buffer_ty:ident, $buffer:expr, $offset:expr, $val:expr) => {
+macro_rules! dynamic_buffer_call {
+    (@enc $encoder_type:ident, $end:ident, $align:ident, $typ:ty, $buffer_ty:ident, $buffer:expr, $offset:expr, $val:expr) => {
         <$typ as $crate::encoder::$encoder_type<$end, $align, $typ>>::encode::<
             $crate::buffer::$buffer_ty<$end>,
         >($val, $buffer, $offset);
     };
-}
-
-#[macro_export]
-macro_rules! dynamic_buffer_decode {
-    ($encoder_type:ident, $end:ident, $align:ident, $typ:ty, $buffer:expr, $offset:expr, $out:expr) => {
+    (@dec $encoder_type:ident, $end:ident, $align:ident, $typ:ty, $buffer:expr, $offset:expr, $out:expr) => {
         <$typ as $crate::encoder::$encoder_type<$end, $align, $typ>>::decode(
             $buffer, $offset, $out,
         );
     };
 }
+
+macro_rules! impl_field_encoder_primitive {
+    ($typ:ty) => {
+        impl<E: ByteOrder, const A: usize> FieldEncoder<E, A, $typ> for $typ {
+            const HEADER_ITEM_SIZE: usize = header_item_size!(A, Self);
+            const HEADER_SIZE: usize = <Self as FieldEncoder<E, A, Self>>::HEADER_ITEM_SIZE;
+
+            fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
+                <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, offset);
+            }
+
+            fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+                <Self as SimpleEncoder<E, A, Self>>::decode(buffer, offset, result);
+            }
+        }
+    };
+}
+
+impl_field_encoder_primitive!(u8);
+impl_field_encoder_primitive!(u16);
+impl_field_encoder_primitive!(u32);
+impl_field_encoder_primitive!(u64);
+impl_field_encoder_primitive!(i8);
+impl_field_encoder_primitive!(i16);
+impl_field_encoder_primitive!(i32);
+impl_field_encoder_primitive!(i64);

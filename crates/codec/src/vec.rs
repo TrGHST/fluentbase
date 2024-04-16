@@ -122,13 +122,13 @@ impl<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>> FieldEncod
     for Vec<T>
 where
     Vec<T>: SimpleEncoder<E, A, Vec<T>>,
-    // T: SimpleEncoder<E, A, T>,
 {
     const HEADER_ITEM_SIZE: usize = header_item_size!(A);
-    const HEADER_SIZE: usize = header_size!(A, 3);
+    const HEADER_SIZE: usize = header_size!(Self::HEADER_ITEM_SIZE, 3);
+
+    // encode format: header(elems_count, data_offset, data_size) data(bytes)
 
     fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
-        // encode format: header(elems_count, data_offset, data_size) data(bytes)
         let elems_count = self.len();
         let data_size = elems_count * size_of!(T);
         let data_offset = buffer.len();
@@ -168,7 +168,6 @@ where
     }
 
     fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
-        // encode format: header(elems_count, data_offset, data_size) data(bytes)
         let mut header_item_offset = offset;
         let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
         let mut elems_count = 0u32;
