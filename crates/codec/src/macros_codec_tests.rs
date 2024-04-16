@@ -1,7 +1,10 @@
 use byteorder::LE;
 
 use crate::encoder::{Encoder, FieldEncoder, ALIGN_DEFAULT};
-use crate::{define_codec_struct, header_item_size};
+use crate::{
+    define_codec_struct, encoder_const_val, header_item_size, ReadableBufferImpl,
+    WritableBufferImpl,
+};
 
 #[test]
 fn test_simple_type_alignment_default_u_le() {
@@ -12,36 +15,53 @@ fn test_simple_type_alignment_default_u_le() {
     define_codec_struct! {
         Endianness,
         ALIGN,
+        pub struct Inner{
+            a21: u64,
+        }
+    };
+
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
         pub struct SimpleTypeU {
-            a: u64,
-            b: u32,
-            c: u16,
+            a1: u64,
+            b2: u32,
+            c3: u8,
+            inner: Inner,
         }
     }
 
     let value0 = SimpleTypeU {
-        a: 100,
-        b: 20,
-        c: 3,
+        a1: 100,
+        b2: 20,
+        c3: 3,
+        inner: Inner { a21: 321 },
     };
     assert_eq!(
-        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
-        <u64 as Encoder<Endianness, ALIGN, u64>>::HEADER_SIZE
-            + <u32 as Encoder<Endianness, ALIGN, u32>>::HEADER_SIZE
-            + <u16 as Encoder<Endianness, ALIGN, u16>>::HEADER_SIZE
+        21,
+        0 + encoder_const_val!(SimpleTypeU, Endianness, ALIGN, HEADER_SIZE)
     );
-    // let encoded_value = {
-    //     let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
-    //         <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
-    //         None,
-    //     );
-    //     <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode::<
-    //         BufferEncoder<Endianness, 0>,
-    //     >(&value0, &mut buffer_encoder, 0);
-    //     buffer_encoder.finalize()
-    // };
-    // println!("{}", hex::encode(&encoded_value));
-    // let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
+    assert_eq!(
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
+        0 + encoder_const_val!(u64, Endianness, ALIGN, HEADER_SIZE)
+            + encoder_const_val!(u32, Endianness, ALIGN, HEADER_SIZE)
+            + encoder_const_val!(u8, Endianness, ALIGN, HEADER_SIZE)
+            + encoder_const_val!(u64, Endianness, ALIGN, HEADER_SIZE)
+    );
+    let encoded_value = {
+        let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
+            <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
+            None,
+        );
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode::<
+            WritableBufferImpl<Endianness>,
+        >(&value0, &mut buffer_encoder, 0);
+        buffer_encoder.finalize()
+    };
+    let expected = "";
+    let fact = hex::encode(&encoded_value);
+    assert_eq!(expected, fact);
+    let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
     // let mut value1 = Default::default();
     // <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::decode_body(
     //     &mut buffer_decoder,

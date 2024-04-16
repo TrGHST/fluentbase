@@ -2,23 +2,23 @@ use alloc::vec::Vec;
 
 use byteorder::ByteOrder;
 
-use crate::buffer::ReadableBuffer;
+use crate::buffer::ReadableBufferImpl;
 use crate::encoder::{FieldEncoder, Serializable, SimpleEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
     fixed_type_size_aligned, fixed_type_size_aligned_padding, header_item_size, header_size,
-    if_align_default_then, simple_encoder_decode, simple_encoder_encode, size_of,
+    if_align_default_then, simple_encoder_decode, simple_encoder_encode, size_of, ReadableBuffer,
 };
 
 macro_rules! impl_simple_encoder_vec {
     ($typ:ty) => {
-        impl<E: ByteOrder, const A: usize> SimpleEncoder<E, A, Vec<$typ>> for Vec<$typ> {
+        impl<E: ByteOrder, const A: usize> $crate::SimpleEncoder<E, A, Vec<$typ>> for Vec<$typ> {
             fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize) {
                 let item_size = $crate::size_of!($typ);
                 let len = item_size * self.len();
                 buffer.fill_bytes(offset, len, 0);
                 for (i, v) in self.iter().enumerate() {
-                    <$typ as SimpleEncoder<E, ALIGN_DEFAULT, $typ>>::encode(
+                    <$typ as $crate::SimpleEncoder<E, ALIGN_DEFAULT, $typ>>::encode(
                         &v,
                         buffer,
                         offset + i * item_size,
@@ -30,7 +30,11 @@ macro_rules! impl_simple_encoder_vec {
                 });
             }
 
-            fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Vec<$typ>) {
+            fn decode<B: $crate::ReadableBuffer<E>>(
+                buffer: &B,
+                offset: usize,
+                result: &mut Vec<$typ>,
+            ) {
                 let size_of_item = $crate::size_of!($typ);
                 result.resize((buffer.len() - offset) / size_of_item, <$typ>::default());
                 for (i, v) in (*result).iter_mut().enumerate() {
@@ -74,7 +78,7 @@ impl<
         });
     }
 
-    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+    fn decode<B: ReadableBuffer<E>>(buffer: &B, offset: usize, result: &mut Self) {
         let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
         let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
         let elem_offset = offset + elem_padding + elem_size;
@@ -106,7 +110,7 @@ where
         });
     }
 
-    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+    fn decode<B: ReadableBuffer<E>>(buffer: &B, offset: usize, result: &mut Self) {
         let elem_padding = fixed_type_size_aligned_padding!(A, [ITEM; COUNT]);
         let elem_size = fixed_type_size_aligned!(A, [ITEM; COUNT]);
         let elem_count = (buffer.len() - offset) / elem_size;
@@ -167,7 +171,7 @@ where
         <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, buffer.len());
     }
 
-    fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+    fn decode(buffer: &ReadableBufferImpl<E>, offset: usize, result: &mut Self) {
         let mut header_item_offset = offset;
         let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
         let mut elems_count = 0u32;

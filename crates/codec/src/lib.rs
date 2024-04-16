@@ -3,8 +3,10 @@
 extern crate alloc;
 extern crate core;
 
-pub use crate::buffer::{DynamicBuffer, ReadableBuffer, WritableBuffer};
-pub use crate::encoder::{Encoder, FieldEncoder, FieldMeta, ALIGN_32, ALIGN_DEFAULT};
+pub use crate::buffer::{ReadableBuffer, ReadableBufferImpl, WritableBuffer, WritableBufferImpl};
+pub use crate::encoder::{
+    Encoder, FieldEncoder, FieldMeta, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT,
+};
 
 mod buffer;
 mod empty;
@@ -26,5 +28,5 @@ mod vec_tests;
 // mod tests;
 // #[cfg(test)]
 // mod buffer_tests;
-// #[cfg(test)]
-// mod macros_codec_tests;
+#[cfg(test)]
+mod macros_codec_tests;

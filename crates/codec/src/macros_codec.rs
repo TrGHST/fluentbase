@@ -11,20 +11,20 @@ macro_rules! derive_header_size {
 #[macro_export]
 macro_rules! derive_encode {
     () => ();
-    ($endianness:ty, $alignment:ident, $self:ident, $encoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        <$typ as Encoder<$endianness, $alignment, $typ >>::encode(&$self.$val, $encoder, $field_offset);
+    ($endianness:ty, $alignment:ident, $self:ident, $buffer:expr, $field_offset:expr, $val:ident: $typ:ty) => {
+        <$typ as Encoder<$endianness, $alignment, $typ >>::encode(&$self.$val, $buffer, $field_offset);
     };
-    ($endianness:ty, $alignment:ident, $self:ident, $encoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
-        $crate::derive_encode!($endianness, $alignment, $self, $encoder, $field_offset, $val_x:$typ_x);
+    ($endianness:ty, $alignment:ident, $self:ident, $buffer:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
+        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $val_x:$typ_x);
         $field_offset += $crate::derive_header_size!($endianness, $alignment, $val_x:$typ_x);
-        $crate::derive_encode!($endianness, $alignment, $self, $encoder, $field_offset, $($val_y:$typ_y),+)
+        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $($val_y:$typ_y),+)
     };
 }
 #[macro_export]
 macro_rules! derive_decode {
     () => ();
-    ($endianness:ty, $alignment:ident, $self:expr, $decoder:expr, $field_offset:expr, $val:ident: $typ:ty) => {
-        <$typ as $crate::Encoder<$endianness, $alignment, $typ>>::decode_body($decoder, $field_offset, &mut $self.$val);
+    ($endianness:ty, $alignment:ident, $self:expr, $buffer:expr, $field_offset:expr, $val:ident: $typ:ty) => {
+        <$typ as $crate::Encoder<$endianness, $alignment, $typ>>::decode_body($buffer, $field_offset, &mut $self.$val);
     };
     ($endianness:ty, $alignment:ident, $self:expr, $decoder:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
         $crate::derive_decode!($endianness, $alignment, $self, $decoder, $field_offset, $val_x:$typ_x);
@@ -62,16 +62,16 @@ macro_rules! define_codec_struct {
             fn encode<W: $crate::WritableBuffer<E>>(&self, buffer: &mut W, mut field_offset: usize) {
                 $crate::derive_encode!(E, A, self, buffer, field_offset, $($element:$ty),*);
             }
-            fn decode_header(decoder: &mut $crate::ReadableBuffer<E>, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
-                $crate::derive_decode!(E, A, result, decoder, field_offset, $($element:$ty),*);
+            fn decode<B: $crate::ReadableBuffer<E>>(buffer: &B, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
+                $crate::derive_decode!(E, A, result, buffer, field_offset, $($element:$ty),*);
                 (0, 0)
             }
         }
         impl From<Vec<u8>> for $struct_type {
             fn from(value: Vec<u8>) -> Self {
                 let mut result = Self::default();
-                let mut buffer_decoder = $crate::ReadableBuffer::<$endianness>::new(value.as_slice());
-                <$struct_type as $crate::Encoder<$endianness, $alignment, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
+                let mut buffer_decoder = $crate::ReadableBufferImpl::<$endianness>::new(value.as_slice());
+                // <$struct_type as $crate::Encoder<$endianness, $alignment, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
                 result
             }
         }

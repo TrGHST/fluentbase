@@ -30,12 +30,12 @@ macro_rules! impl_byte_writer {
 }
 
 #[derive(Default)]
-pub struct DynamicBuffer<E> {
+pub struct WritableBufferImpl<E> {
     buffer: Vec<u8>,
     _pt1: PhantomType<E>,
 }
 
-impl<E: ByteOrder> DynamicBuffer<E> {
+impl<E: ByteOrder> WritableBufferImpl<E> {
     pub fn new(header_length: usize, data_length: Option<usize>) -> Self {
         let mut buffer = Vec::with_capacity(header_length + data_length.unwrap_or(0));
         buffer.resize(header_length, 0);
@@ -50,7 +50,7 @@ impl<E: ByteOrder> DynamicBuffer<E> {
     }
 }
 
-impl<E: ByteOrder> WritableBuffer<E> for DynamicBuffer<E> {
+impl<E: ByteOrder> WritableBuffer<E> for WritableBufferImpl<E> {
     fn len(&self) -> usize {
         return self.buffer.len();
     }
@@ -95,30 +95,49 @@ impl<E: ByteOrder> WritableBuffer<E> for DynamicBuffer<E> {
 macro_rules! impl_byte_reader {
     ($typ:ty, $endianness:ident) => {
         paste! {
-            pub fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
+            fn [<read_ $typ>](&self, field_offset: usize) -> $typ {
                 $endianness::[<read_ $typ>](&self.buffer[field_offset..])
             }
         }
     };
 }
 
+pub trait ReadableBuffer<E: ByteOrder> {
+    fn read_i8(&self, field_offset: usize) -> i8;
+    fn read_u8(&self, field_offset: usize) -> u8;
+    fn read_i16(&self, field_offset: usize) -> i16;
+    fn read_u16(&self, field_offset: usize) -> u16;
+    fn read_i32(&self, field_offset: usize) -> i32;
+    fn read_u32(&self, field_offset: usize) -> u32;
+    fn read_i64(&self, field_offset: usize) -> i64;
+    fn read_u64(&self, field_offset: usize) -> u64;
+
+    fn read_bytes(&self, offset: usize, len: usize) -> &[u8];
+
+    fn len(&self) -> usize;
+
+    fn len_offset(&self, offset: usize) -> usize;
+}
+
 #[derive(Default)]
-pub struct ReadableBuffer<'a, E> {
+pub struct ReadableBufferImpl<'a, E> {
     buffer: &'a [u8],
     _pt1: PhantomType<E>,
 }
-impl<'a, E: ByteOrder> ReadableBuffer<'a, E> {
+
+impl<'a, E: ByteOrder> ReadableBufferImpl<'a, E> {
     pub fn new(input: &'a [u8]) -> Self {
         Self {
             buffer: input,
             ..Default::default()
         }
     }
-
-    pub fn read_i8(&self, field_offset: usize) -> i8 {
+}
+impl<'a, E: ByteOrder> ReadableBuffer<E> for ReadableBufferImpl<'a, E> {
+    fn read_i8(&self, field_offset: usize) -> i8 {
         self.buffer[field_offset] as i8
     }
-    pub fn read_u8(&self, field_offset: usize) -> u8 {
+    fn read_u8(&self, field_offset: usize) -> u8 {
         self.buffer[field_offset]
     }
 
@@ -129,15 +148,15 @@ impl<'a, E: ByteOrder> ReadableBuffer<'a, E> {
     impl_byte_reader!(i64, E);
     impl_byte_reader!(u64, E);
 
-    pub fn read_bytes(&self, offset: usize, len: usize) -> &[u8] {
+    fn read_bytes(&self, offset: usize, len: usize) -> &[u8] {
         &self.buffer[offset..offset + len]
     }
 
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.buffer.len()
     }
 
-    pub fn len_offset(&self, offset: usize) -> usize {
+    fn len_offset(&self, offset: usize) -> usize {
         self.buffer[offset..].len()
     }
 }

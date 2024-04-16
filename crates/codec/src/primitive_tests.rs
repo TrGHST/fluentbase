@@ -1,10 +1,10 @@
 use byteorder::{BE, LE};
 
-use crate::buffer::ReadableBuffer;
+use crate::buffer::ReadableBufferImpl;
 use crate::encoder::{SimpleEncoder, ALIGN_32, ALIGN_DEFAULT};
 use crate::{
     dynamic_buffer_call, dynamic_size_aligned, field_encoder_call, field_encoder_const_val,
-    fixed_type_size_aligned, header_item_size, size_of, DynamicBuffer,
+    fixed_type_size_aligned, header_item_size, size_of, WritableBufferImpl,
 };
 
 #[test]
@@ -14,14 +14,14 @@ fn test_simple_encoder_le_ad_i32() {
     type VType1 = i32;
     let v1_in: VType1 = 10;
     let offset = 0;
-    let mut buffer = DynamicBuffer::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
+    let mut buffer = WritableBufferImpl::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
     dynamic_buffer_call!(
         @enc
         SimpleEncoder,
         End,
         ALIGN,
         VType1,
-        DynamicBuffer,
+        WritableBufferImpl,
         &mut buffer,
         offset,
         &v1_in
@@ -30,7 +30,7 @@ fn test_simple_encoder_le_ad_i32() {
     let expected = "0a000000";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let mut buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let mut buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: VType1 = 0;
     dynamic_buffer_call!(
         @dec
@@ -52,14 +52,14 @@ fn test_simple_encoder_be_a32_i32() {
     type VType1 = i32;
     let v1_in: VType1 = 10;
     let offset = 0;
-    let mut buffer = DynamicBuffer::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
+    let mut buffer = WritableBufferImpl::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
     dynamic_buffer_call!(
         @enc
         SimpleEncoder,
         End,
         ALIGN,
         VType1,
-        DynamicBuffer,
+        WritableBufferImpl,
         &mut buffer,
         offset,
         &v1_in
@@ -68,7 +68,7 @@ fn test_simple_encoder_be_a32_i32() {
     let expected = "000000000000000000000000000000000000000000000000000000000000000a";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let mut buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let mut buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: VType1 = 0;
     dynamic_buffer_call!(
         @dec
@@ -90,14 +90,14 @@ fn test_simple_encoder_le_ad_i64() {
     type VType1 = i64;
     let v1_in: VType1 = 10;
     let offset = 0;
-    let mut buffer = DynamicBuffer::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
+    let mut buffer = WritableBufferImpl::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
     dynamic_buffer_call!(
         @enc
         SimpleEncoder,
         End,
         ALIGN,
         VType1,
-        DynamicBuffer,
+        WritableBufferImpl,
         &mut buffer,
         offset,
         &v1_in
@@ -106,7 +106,7 @@ fn test_simple_encoder_le_ad_i64() {
     let expected = "0a00000000000000";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let mut buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let mut buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: VType1 = 0;
     dynamic_buffer_call!(
         @dec
@@ -128,14 +128,14 @@ fn test_simple_encoder_be_a32_i64() {
     type VType1 = i64;
     let v1_in: VType1 = 10;
     let offset = 0;
-    let mut buffer = DynamicBuffer::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
+    let mut buffer = WritableBufferImpl::<End>::new(fixed_type_size_aligned!(ALIGN, VType1), None);
     dynamic_buffer_call!(
         @enc
         SimpleEncoder,
         End,
         ALIGN,
         VType1,
-        DynamicBuffer,
+        WritableBufferImpl,
         &mut buffer,
         offset,
         &v1_in
@@ -144,7 +144,7 @@ fn test_simple_encoder_be_a32_i64() {
     let expected = "000000000000000000000000000000000000000000000000000000000000000a";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let mut buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let mut buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: VType1 = 0;
     dynamic_buffer_call!(
         @dec
@@ -172,7 +172,7 @@ fn test_field_encoder_le_ad_u64() {
         header_size,
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
-    let mut buffer = DynamicBuffer::<End>::new(header_size, None);
+    let mut buffer = WritableBufferImpl::<End>::new(header_size, None);
     field_encoder_call!(@enc V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
@@ -188,7 +188,7 @@ fn test_field_encoder_le_ad_u64() {
     ";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: V1Type = 0;
     field_encoder_call!(@dec V1Type, End, ALIGN, &buffer, offset, &mut v1_out);
     assert_eq!(v1_in, v1_out);
@@ -207,7 +207,7 @@ fn test_field_encoder_be_a32_u64() {
         header_size,
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
-    let mut buffer = DynamicBuffer::<End>::new(header_size, None);
+    let mut buffer = WritableBufferImpl::<End>::new(header_size, None);
     field_encoder_call!(@enc V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
@@ -223,7 +223,7 @@ fn test_field_encoder_be_a32_u64() {
     ";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
-    let buffer = ReadableBuffer::<End>::new(&encoded_value);
+    let buffer = ReadableBufferImpl::<End>::new(&encoded_value);
     let mut v1_out: V1Type = 0;
 
     field_encoder_call!(@dec V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);

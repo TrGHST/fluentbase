@@ -1,7 +1,7 @@
 use byteorder::ByteOrder;
 use paste::paste;
 
-use crate::buffer::ReadableBuffer;
+use crate::buffer::{ReadableBuffer, ReadableBufferImpl};
 use crate::encoder::{Serializable, SimpleEncoder};
 use crate::{
     fixed_type_size_aligned_padding, header_item_size, size_of, FieldEncoder, WritableBuffer,
@@ -17,7 +17,7 @@ use crate::{
 //                     b.[<write_ $typ>](offset + padding, *self);
 //                 }
 //
-//                 fn decode(b: &$crate::buffer::ReadableBuffer<E>, offset: usize, result: &mut $typ) {
+//                 fn decode(b: &$crate::buffer::ReadableBufferImpl<E>, offset: usize, result: &mut $typ) {
 //                     let padding = $crate::fixed_type_size_aligned_padding!(A, $typ);
 //                     *result = b.[<read_ $typ>](offset + padding);
 //                 }
@@ -39,11 +39,11 @@ macro_rules! impl_serializable {
     ($typ:ty) => {
         paste! {
             impl<E: ByteOrder, const A: usize> Serializable<E, A, $typ> for $typ {
-                fn serialize<W: WritableBuffer<E>>(&self, b: &mut W, offset: usize) {
+                fn serialize<B: $crate::WritableBuffer<E>>(&self, b: &mut B, offset: usize) {
                     b.[<write_ $typ>](offset, *self);
                 }
 
-                fn deserialize(b: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+                fn deserialize<B: $crate::ReadableBuffer<E>>(b: &B, offset: usize, result: &mut Self) {
                     *result = b.[<read_ $typ>](offset);
                 }
             }
@@ -74,7 +74,7 @@ impl<E: ByteOrder, const A: usize, const COUNT: usize, ITEM: Sized + Serializabl
         // }
     }
 
-    fn deserialize(b: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+    fn deserialize<B: ReadableBuffer<E>>(b: &B, offset: usize, result: &mut Self) {
         for i in 0..COUNT {
             ITEM::deserialize(b, offset + i * size_of!(ITEM), &mut result[i]);
         }
@@ -95,7 +95,7 @@ macro_rules! impl_simple_encoder_primitive {
                 <$typ as Serializable<E, A, $typ>>::serialize(&self, b, offset + padding);
             }
 
-            fn decode(b: &ReadableBuffer<E>, offset: usize, result: &mut $typ) {
+            fn decode<B: ReadableBuffer<E>>(b: &B, offset: usize, result: &mut $typ) {
                 let padding = fixed_type_size_aligned_padding!(A, Self);
                 <$typ as Serializable<E, A, $typ>>::deserialize(b, offset + padding, result);
             }
@@ -136,7 +136,7 @@ macro_rules! impl_field_encoder_primitive {
                 <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, offset);
             }
 
-            fn decode(buffer: &ReadableBuffer<E>, offset: usize, result: &mut Self) {
+            fn decode(buffer: &ReadableBufferImpl<E>, offset: usize, result: &mut Self) {
                 <Self as SimpleEncoder<E, A, Self>>::decode(buffer, offset, result);
             }
         }
