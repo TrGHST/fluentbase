@@ -122,6 +122,7 @@ impl<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>> FieldEncod
     for Vec<T>
 where
     Vec<T>: SimpleEncoder<E, A, Vec<T>>,
+    // T: SimpleEncoder<E, A, T>,
 {
     const HEADER_ITEM_SIZE: usize = header_item_size!(A);
     const HEADER_SIZE: usize = header_size!(A, 3);

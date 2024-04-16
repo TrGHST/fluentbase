@@ -6,7 +6,8 @@ use crate::buffer::ReadableBuffer;
 use crate::encoder::{FieldEncoder, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT};
 use crate::{
     dynamic_buffer_decode, dynamic_buffer_encode, dynamic_size_aligned, field_encoder_const_val,
-    header_item_size, header_size, size_aligned, size_of, DynamicBuffer,
+    field_encoder_decode, field_encoder_encode, header_item_size, header_size, size_aligned,
+    size_of, DynamicBuffer,
 };
 
 #[test]
@@ -307,7 +308,7 @@ fn test_field_encoder_be_ad_vec_u8() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -327,7 +328,7 @@ fn test_field_encoder_be_ad_vec_u8() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out);
     assert_eq!(v1_in, v1_out);
 }
 
@@ -346,7 +347,7 @@ fn test_field_encoder_be_a32_vec_u8() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -366,7 +367,8 @@ fn test_field_encoder_be_a32_vec_u8() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, v1_in.len(), V1ItemType);
     v1_in.resize(v1_in_len_aligned, 0);
     assert_eq!(v1_in, v1_out);
@@ -387,7 +389,7 @@ fn test_field_encoder_be_ad_vec_u16() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -407,7 +409,8 @@ fn test_field_encoder_be_ad_vec_u16() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     assert_eq!(v1_in, v1_out);
 }
 
@@ -426,7 +429,7 @@ fn test_field_encoder_be_a32_vec_u16() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -446,7 +449,8 @@ fn test_field_encoder_be_a32_vec_u16() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, v1_in.len(), V1ItemType);
     v1_in.resize(v1_in_len_aligned, 0);
     assert_eq!(v1_in, v1_out);
@@ -467,7 +471,7 @@ fn test_field_encoder_be_ad_vec_u16_empty() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -486,7 +490,8 @@ fn test_field_encoder_be_ad_vec_u16_empty() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     assert_eq!(v1_in, v1_out);
 }
 
@@ -505,7 +510,7 @@ fn test_field_encoder_be_a32_vec_u16_empty() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -524,7 +529,8 @@ fn test_field_encoder_be_a32_vec_u16_empty() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, v1_in.len(), V1ItemType);
     v1_in.resize(v1_in_len_aligned, 0);
     assert_eq!(v1_in, v1_out);
@@ -543,11 +549,10 @@ fn test_field_encoder_be_ad_vec_of_fixed16() {
     let header_size = header_size!(ALIGN, 3);
     assert_eq!(
         header_size,
-        // field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE),
-        <V1Type as FieldEncoder<End, ALIGN, V1Type>>::HEADER_SIZE,
+        field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE),
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -567,7 +572,8 @@ fn test_field_encoder_be_ad_vec_of_fixed16() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     assert_eq!(v1_in, v1_out);
 }
 
@@ -586,7 +592,7 @@ fn test_field_encoder_be_a32_vec_of_fixed16() {
         field_encoder_const_val!(V1Type, End, ALIGN, HEADER_SIZE)
     );
     let mut buffer = DynamicBuffer::<End>::new(header_size, None);
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::encode(&v1_in, &mut buffer, offset);
+    field_encoder_encode!(V1Type, End, ALIGN, &mut buffer, offset, &v1_in);
     let encoded_value = buffer.finalize();
     for (i, v) in encoded_value
         .as_slice()
@@ -606,7 +612,8 @@ fn test_field_encoder_be_a32_vec_of_fixed16() {
     assert_eq!(expected, fact);
     let buffer = ReadableBuffer::<End>::new(&encoded_value);
     let mut v1_out: V1Type = Vec::new();
-    <V1Type as FieldEncoder<End, ALIGN, V1Type>>::decode(&buffer, offset, &mut v1_out);
+
+    field_encoder_decode!(V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
     // let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, v1_in.len(), V1ItemType);
     // v1_in.resize(v1_in_len_aligned, 0);
     assert_eq!(v1_in, v1_out);

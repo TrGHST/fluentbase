@@ -44,7 +44,7 @@ macro_rules! derive_types {
     };
     (@def $endianness:ty, $alignment:ident, $field_offset:expr, $val_head:ident: $typ_head:ty, $($val_next:ident:$typ_next:ty,)* $(,)?) => {
         paste::paste! {
-            type [<$val_head:camel>] = $crate::FieldEncoder<$endianness, $alignment, $typ_head, { $field_offset }>;
+            type [<$val_head:camel>] = $crate::FieldMeta<$endianness, $alignment, $typ_head, { $field_offset }>;
         }
         $crate::derive_types!(@def $endianness, $alignment, $field_offset + <$typ_head as $crate::Encoder<$endianness, $alignment, $typ_head>>::HEADER_SIZE, $($val_next:$typ_next,)*);
     };
@@ -59,10 +59,10 @@ macro_rules! define_codec_struct {
         }
         impl<E: ::byteorder::ByteOrder, const A: usize> $crate::Encoder<E, A, $struct_type> for $struct_type {
             const HEADER_SIZE: usize = $crate::derive_header_size!(E, A, $($element:$ty),*);
-            fn encode<W: $crate::WritableBuffer<E>>(&self, encoder: &mut W, mut field_offset: usize) {
-                $crate::derive_encode!(E, A, self, encoder, field_offset, $($element:$ty),*);
+            fn encode<W: $crate::WritableBuffer<E>>(&self, buffer: &mut W, mut field_offset: usize) {
+                $crate::derive_encode!(E, A, self, buffer, field_offset, $($element:$ty),*);
             }
-            fn decode_header(decoder: &mut $crate::BufferDecoder<E>, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
+            fn decode_header(decoder: &mut $crate::ReadableBuffer<E>, mut field_offset: usize, result: &mut $struct_type) -> (usize, usize) {
                 $crate::derive_decode!(E, A, result, decoder, field_offset, $($element:$ty),*);
                 (0, 0)
             }
@@ -70,7 +70,7 @@ macro_rules! define_codec_struct {
         impl From<Vec<u8>> for $struct_type {
             fn from(value: Vec<u8>) -> Self {
                 let mut result = Self::default();
-                let mut buffer_decoder = $crate::BufferDecoder::<$endianness>::new(value.as_slice());
+                let mut buffer_decoder = $crate::ReadableBuffer::<$endianness>::new(value.as_slice());
                 <$struct_type as $crate::Encoder<$endianness, $alignment, $struct_type>>::decode_body(&mut buffer_decoder, 0, &mut result);
                 result
             }
