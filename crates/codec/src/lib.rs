@@ -5,7 +5,7 @@ extern crate core;
 
 pub use crate::buffer::{ReadableBuffer, ReadableBufferImpl, WritableBuffer, WritableBufferImpl};
 pub use crate::encoder::{
-    Encoder, FieldEncoder, FieldMeta, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT,
+    Encoder, FieldEncoder, FieldMeta, Serializable, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT,
 };
 
 mod buffer;
@@ -18,10 +18,10 @@ mod encoder_macros;
 mod encoder_tests;
 mod macros_codec;
 mod macros_common;
-mod primitive;
+mod primitive_impls;
 #[cfg(test)]
 mod primitive_tests;
-mod vec;
+mod vec_impls;
 #[cfg(test)]
 mod vec_tests;
 // #[cfg(test)]

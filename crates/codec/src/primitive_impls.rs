@@ -38,7 +38,7 @@ use crate::{
 macro_rules! impl_serializable {
     ($typ:ty) => {
         paste! {
-            impl<E: ByteOrder, const A: usize> Serializable<E, A, $typ> for $typ {
+            impl<E: ByteOrder, const A: usize> $crate::Serializable<E, A, $typ> for $typ {
                 fn serialize<B: $crate::WritableBuffer<E>>(&self, b: &mut B, offset: usize) {
                     b.[<write_ $typ>](offset, *self);
                 }
@@ -50,6 +50,7 @@ macro_rules! impl_serializable {
         }
     };
 }
+impl_serializable!(bool);
 impl_serializable!(u8);
 impl_serializable!(u16);
 impl_serializable!(u32);
@@ -103,6 +104,7 @@ macro_rules! impl_simple_encoder_primitive {
     };
 }
 
+impl_simple_encoder_primitive!(bool);
 impl_simple_encoder_primitive!(u8);
 impl_simple_encoder_primitive!(u16);
 impl_simple_encoder_primitive!(u32);
@@ -136,13 +138,14 @@ macro_rules! impl_field_encoder_primitive {
                 <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, offset);
             }
 
-            fn decode(buffer: &ReadableBufferImpl<E>, offset: usize, result: &mut Self) {
+            fn decode<B: ReadableBuffer<E>>(buffer: &B, offset: usize, result: &mut Self) {
                 <Self as SimpleEncoder<E, A, Self>>::decode(buffer, offset, result);
             }
         }
     };
 }
 
+impl_field_encoder_primitive!(bool);
 impl_field_encoder_primitive!(u8);
 impl_field_encoder_primitive!(u16);
 impl_field_encoder_primitive!(u32);
@@ -151,3 +154,32 @@ impl_field_encoder_primitive!(i8);
 impl_field_encoder_primitive!(i16);
 impl_field_encoder_primitive!(i32);
 impl_field_encoder_primitive!(i64);
+
+macro_rules! impl_encoder_primitive {
+    ($typ:ty) => {
+        impl<E: ByteOrder, const A: usize> $crate::Encoder<E, A, $typ> for $typ {
+            const HEADER_SIZE: usize = $crate::header_size!(A, Self, 1);
+            fn encode<B: $crate::WritableBuffer<E>>(&self, buffer: &mut B, field_offset: usize) {
+                FieldEncoder::<E, A, $typ>::encode(self, buffer, field_offset);
+            }
+            fn decode<B: $crate::ReadableBuffer<E>>(
+                buffer: &B,
+                field_offset: usize,
+                result: &mut $typ,
+            ) -> (usize, usize) {
+                <$typ as $crate::FieldEncoder<E, A, $typ>>::decode(buffer, field_offset, result);
+                (0, 0)
+            }
+        }
+    };
+}
+
+impl_encoder_primitive!(bool);
+impl_encoder_primitive!(u8);
+impl_encoder_primitive!(u16);
+impl_encoder_primitive!(u32);
+impl_encoder_primitive!(u64);
+impl_encoder_primitive!(i8);
+impl_encoder_primitive!(i16);
+impl_encoder_primitive!(i32);
+impl_encoder_primitive!(i64);

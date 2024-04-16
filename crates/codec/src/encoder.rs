@@ -2,7 +2,7 @@ use byteorder::ByteOrder;
 use phantom_type::PhantomType;
 
 use crate::buffer::{ReadableBuffer, ReadableBufferImpl};
-use crate::{header_item_size, header_size, WritableBuffer};
+use crate::{header_item_size, header_size, WritableBuffer, WritableBufferImpl};
 
 pub const ALIGN_DEFAULT: usize = 0;
 pub const ALIGN_32: usize = 32;
@@ -21,17 +21,13 @@ pub trait SimpleEncoder<E: ByteOrder, const A: usize, T: Sized> {
 }
 
 #[macro_export]
-macro_rules! simple_encoder_encode {
-    ($typ:ty, $encoder_type:ident, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val:expr) => {
+macro_rules! simple_encoder_call {
+    (@enc $typ:ty, $encoder_type:ident, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val:expr) => {
         <$typ as $crate::encoder::$encoder_type<$endianness, $align, $typ>>::encode(
             $val, $buffer, $offset,
         );
     };
-}
-
-#[macro_export]
-macro_rules! simple_encoder_decode {
-    ($typ:ty, $encoder_type:ident, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $out:expr) => {
+    (@dec $typ:ty, $encoder_type:ident, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $out:expr) => {
         <$typ as $crate::encoder::$encoder_type<$endianness, $align, $typ>>::decode(
             $buffer, $offset, $out,
         );
@@ -42,9 +38,9 @@ pub trait FieldEncoder<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E,
     const HEADER_ITEM_SIZE: usize = header_item_size!(A, T);
     const HEADER_SIZE: usize = header_item_size!(A, T);
 
-    fn encode<W: WritableBuffer<E>>(&self, buffer: &mut W, offset: usize);
+    fn encode<B: WritableBuffer<E>>(&self, buffer: &mut B, offset: usize);
 
-    fn decode(buffer: &ReadableBufferImpl<E>, offset: usize, result: &mut T);
+    fn decode<B: ReadableBuffer<E>>(buffer: &B, offset: usize, result: &mut T);
 }
 
 #[macro_export]
@@ -88,9 +84,9 @@ impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T>, const FIELD_OFFS
         field_offset: usize,
         result: &mut T,
     ) -> (usize, usize) {
-        // let mut buffer_decoder = ReadableBufferImpl::new(buffer);
-        // T::decode_header(&mut buffer_decoder, field_offset, result)
-        (0, 0)
+        let mut buffer_decoder = ReadableBufferImpl::new(buffer);
+        T::decode(&mut buffer_decoder, field_offset, result)
+        // (0, 0)
     }
 
     pub fn decode_field_body(buffer: &[u8], result: &mut T) {
@@ -98,8 +94,8 @@ impl<E: ByteOrder, const A: usize, T: Sized + Encoder<E, A, T>, const FIELD_OFFS
     }
 
     pub fn decode_field_body_at(buffer: &[u8], field_offset: usize, result: &mut T) {
-        // let mut buffer_decoder = ReadableBufferImpl::new(buffer);
-        // T::decode_body(&mut buffer_decoder, field_offset, result)
+        let mut buffer_decoder = ReadableBufferImpl::new(buffer);
+        T::decode_body(&mut buffer_decoder, field_offset, result)
     }
 }
 
@@ -109,10 +105,9 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
         Self::HEADER_SIZE
     }
     fn encode_to_vec(&self, field_offset: usize) -> Vec<u8> {
-        // let mut buffer_encoder = WritableBufferImpl::<E>::new(Self::HEADER_SIZE, None);
-        // self.encode(&mut buffer_encoder, field_offset);
-        // buffer_encoder.finalize()
-        Vec::default()
+        let mut buffer_encoder = WritableBufferImpl::<E>::new(Self::HEADER_SIZE, None);
+        self.encode(&mut buffer_encoder, field_offset);
+        buffer_encoder.finalize()
     }
 
     fn encode<B: WritableBuffer<E>>(&self, buffer: &mut B, field_offset: usize);
@@ -127,31 +122,6 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
         Self::decode(buffer, field_offset, result);
     }
 }
-
-macro_rules! impl_encoder_primitive {
-    ($typ:ty) => {
-        impl<E: ByteOrder, const A: usize, T: Sized> Encoder<E, A, T> for $typ {
-            const HEADER_SIZE: usize = header_size!(A, Self, 1);
-            fn encode<B: WritableBuffer<E>>(&self, buffer: &mut B, field_offset: usize) {}
-            fn decode<B: ReadableBuffer<E>>(
-                buffer: &B,
-                field_offset: usize,
-                result: &mut T,
-            ) -> (usize, usize) {
-                (0, 0)
-            }
-        }
-    };
-}
-
-impl_encoder_primitive!(u8);
-impl_encoder_primitive!(u16);
-impl_encoder_primitive!(u32);
-impl_encoder_primitive!(u64);
-impl_encoder_primitive!(i8);
-impl_encoder_primitive!(i16);
-impl_encoder_primitive!(i32);
-impl_encoder_primitive!(i64);
 
 #[macro_export]
 macro_rules! encoder_const_val {

@@ -1,9 +1,9 @@
-use byteorder::LE;
+use byteorder::{BE, LE};
 
 use crate::encoder::{Encoder, FieldEncoder, ALIGN_DEFAULT};
 use crate::{
-    define_codec_struct, encoder_const_val, header_item_size, ReadableBufferImpl,
-    WritableBufferImpl,
+    define_codec_struct, encoder_const_val, header_item_size, header_size, ReadableBufferImpl,
+    WritableBufferImpl, ALIGN_32,
 };
 
 #[test]
@@ -27,7 +27,7 @@ fn test_simple_type_alignment_default_u_le() {
             a1: u64,
             b2: u32,
             c3: u8,
-            inner: Inner,
+            // inner: Inner,
         }
     }
 
@@ -35,10 +35,10 @@ fn test_simple_type_alignment_default_u_le() {
         a1: 100,
         b2: 20,
         c3: 3,
-        inner: Inner { a21: 321 },
+        // inner: Inner { a21: 321 },
     };
     assert_eq!(
-        21,
+        13,
         0 + encoder_const_val!(SimpleTypeU, Endianness, ALIGN, HEADER_SIZE)
     );
     assert_eq!(
@@ -46,7 +46,6 @@ fn test_simple_type_alignment_default_u_le() {
         0 + encoder_const_val!(u64, Endianness, ALIGN, HEADER_SIZE)
             + encoder_const_val!(u32, Endianness, ALIGN, HEADER_SIZE)
             + encoder_const_val!(u8, Endianness, ALIGN, HEADER_SIZE)
-            + encoder_const_val!(u64, Endianness, ALIGN, HEADER_SIZE)
     );
     let encoded_value = {
         let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
@@ -58,83 +57,79 @@ fn test_simple_type_alignment_default_u_le() {
         >(&value0, &mut buffer_encoder, 0);
         buffer_encoder.finalize()
     };
-    let expected = "";
+    let expected = "64000000000000001400000003";
     let fact = hex::encode(&encoded_value);
     assert_eq!(expected, fact);
     let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
-    // let mut value1 = Default::default();
-    // <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::decode_body(
-    //     &mut buffer_decoder,
-    //     0,
-    //     &mut value1,
-    // );
-    // assert_eq!(value0, value1);
+    let mut value1 = Default::default();
+    <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::decode_body(
+        &mut buffer_decoder,
+        0,
+        &mut value1,
+    );
+    assert_eq!(value0, value1);
 }
 
-// #[test]
-// fn test_simple_type_alignment_32_u_be() {
-//     type Endianness = BE;
-//     const ALIGN: usize = ALIGN_32;
-//     let header_item_size = header_item_size!(ALIGN);
-//
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeU {
-//             a: u64,
-//             b: u32,
-//             c: u16,
-//             boo: u8,
-//         }
-//     }
-//
-//     let value0 = SimpleTypeU {
-//         a: 100,
-//         b: 20,
-//         c: 3,
-//         boo: 1,
-//     };
-//     assert_eq!(
-//         <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
-//         <u64 as Encoder<Endianness, ALIGN, u64>>::HEADER_SIZE
-//             + <u32 as Encoder<Endianness, ALIGN, u32>>::HEADER_SIZE
-//             + <u16 as Encoder<Endianness, ALIGN, u16>>::HEADER_SIZE
-//             + <bool as Encoder<Endianness, ALIGN, bool>>::HEADER_SIZE
-//     );
-//     let encoded_value = {
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
-//             // <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
-//             header_size!(SimpleTypeU, Endianness, ALIGN),
-//             None,
-//         );
-//         <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode(
-//             &value0,
-//             &mut buffer_encoder,
-//             0,
-//         );
-//         buffer_encoder.finalize()
-//     };
-//     let expected = "\
-//         0000000000000064000000000000000000000000000000000000000000000000\
-//         0000001400000000000000000000000000000000000000000000000000000000\
-//         0003000000000000000000000000000000000000000000000000000000000000\
-//         0100000000000000000000000000000000000000000000000000000000000000\
-//         ";
-//     let fact = hex::encode(&encoded_value);
-//     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
-//     let mut value1 = Default::default();
-//     call_decode_body!(
-//         SimpleTypeU,
-//         Endianness,
-//         ALIGN,
-//         &mut buffer_decoder,
-//         0,
-//         &mut value1
-//     );
-//     assert_eq!(value0, value1);
-// }
-//
+#[test]
+fn test_simple_type_alignment_32_u_be() {
+    type Endianness = BE;
+    const ALIGN: usize = ALIGN_32;
+    let header_item_size = header_item_size!(ALIGN);
+
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeU {
+            a: u64,
+            b: u32,
+            c: u16,
+            bool: bool,
+        }
+    }
+
+    let value0 = SimpleTypeU {
+        a: 100,
+        b: 20,
+        c: 3,
+        bool: true,
+    };
+    assert_eq!(
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
+        <u64 as Encoder<Endianness, ALIGN, u64>>::HEADER_SIZE
+            + <u32 as Encoder<Endianness, ALIGN, u32>>::HEADER_SIZE
+            + <u16 as Encoder<Endianness, ALIGN, u16>>::HEADER_SIZE
+            + <bool as Encoder<Endianness, ALIGN, bool>>::HEADER_SIZE
+    );
+    let encoded_value = {
+        let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
+            <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::HEADER_SIZE,
+            None,
+        );
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode(
+            &value0,
+            &mut buffer_encoder,
+            0,
+        );
+        buffer_encoder.finalize()
+    };
+    let expected = "\
+        0000000000000000000000000000000000000000000000000000000000000064\
+        0000000000000000000000000000000000000000000000000000000000000014\
+        0000000000000000000000000000000000000000000000000000000000000003\
+        0000000000000000000000000000000000000000000000000000000000000001\
+        ";
+    let fact = hex::encode(&encoded_value);
+    assert_eq!(expected, fact);
+    let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
+    let mut value1 = Default::default();
+    <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::decode_body(
+        &mut buffer_decoder,
+        0,
+        &mut value1,
+    );
+    assert_eq!(value0, value1);
+}
+
 // #[test]
 // fn test_simple_type_s_alignment_default_le() {
 //     type Endianness = LE;

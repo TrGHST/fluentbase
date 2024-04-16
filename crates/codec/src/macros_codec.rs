@@ -17,7 +17,7 @@ macro_rules! derive_encode {
     ($endianness:ty, $alignment:ident, $self:ident, $buffer:expr, $field_offset:expr, $val_x:ident:$typ_x:ty, $($val_y:ident:$typ_y:ty),+ $(,)?) => {
         $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $val_x:$typ_x);
         $field_offset += $crate::derive_header_size!($endianness, $alignment, $val_x:$typ_x);
-        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $($val_y:$typ_y),+)
+        $crate::derive_encode!($endianness, $alignment, $self, $buffer, $field_offset, $($val_y:$typ_y),+);
     };
 }
 #[macro_export]

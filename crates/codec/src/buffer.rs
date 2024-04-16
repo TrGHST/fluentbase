@@ -6,6 +6,7 @@ use phantom_type::PhantomType;
 
 pub trait WritableBuffer<E: ByteOrder> {
     fn len(&self) -> usize;
+    fn write_bool(&mut self, field_offset: usize, value: bool) -> usize;
     fn write_i8(&mut self, field_offset: usize, value: i8) -> usize;
     fn write_u8(&mut self, field_offset: usize, value: u8) -> usize;
     fn write_i16(&mut self, field_offset: usize, value: i16) -> usize;
@@ -53,6 +54,10 @@ impl<E: ByteOrder> WritableBufferImpl<E> {
 impl<E: ByteOrder> WritableBuffer<E> for WritableBufferImpl<E> {
     fn len(&self) -> usize {
         return self.buffer.len();
+    }
+    fn write_bool(&mut self, offset: usize, value: bool) -> usize {
+        self.buffer[offset] = value as u8;
+        1
     }
     fn write_i8(&mut self, offset: usize, value: i8) -> usize {
         self.buffer[offset] = value as u8;
@@ -103,6 +108,7 @@ macro_rules! impl_byte_reader {
 }
 
 pub trait ReadableBuffer<E: ByteOrder> {
+    fn read_bool(&self, field_offset: usize) -> bool;
     fn read_i8(&self, field_offset: usize) -> i8;
     fn read_u8(&self, field_offset: usize) -> u8;
     fn read_i16(&self, field_offset: usize) -> i16;
@@ -134,6 +140,9 @@ impl<'a, E: ByteOrder> ReadableBufferImpl<'a, E> {
     }
 }
 impl<'a, E: ByteOrder> ReadableBuffer<E> for ReadableBufferImpl<'a, E> {
+    fn read_bool(&self, field_offset: usize) -> bool {
+        self.buffer[field_offset] > 0
+    }
     fn read_i8(&self, field_offset: usize) -> i8 {
         self.buffer[field_offset] as i8
     }

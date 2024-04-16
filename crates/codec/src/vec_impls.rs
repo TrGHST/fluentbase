@@ -7,7 +7,7 @@ use crate::encoder::{FieldEncoder, Serializable, SimpleEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
     fixed_type_size_aligned, fixed_type_size_aligned_padding, header_item_size, header_size,
-    if_align_default_then, simple_encoder_decode, simple_encoder_encode, size_of, ReadableBuffer,
+    if_align_default_then, simple_encoder_call, size_of, ReadableBuffer,
 };
 
 macro_rules! impl_simple_encoder_vec {
@@ -138,7 +138,7 @@ where
         let data_offset = buffer.len();
         let mut header_item_offset = offset;
         let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-        simple_encoder_encode!(
+        simple_encoder_call!(@enc
             u32,
             SimpleEncoder,
             E,
@@ -148,7 +148,7 @@ where
             &(self.len() as u32)
         );
         header_item_offset += header_item_size;
-        simple_encoder_encode!(
+        simple_encoder_call!(@enc
             u32,
             SimpleEncoder,
             E,
@@ -158,7 +158,7 @@ where
             &(data_offset as u32)
         );
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-        simple_encoder_encode!(
+        simple_encoder_call!(@enc
             u32,
             SimpleEncoder,
             E,
@@ -171,13 +171,13 @@ where
         <Self as SimpleEncoder<E, A, Self>>::encode(self, buffer, buffer.len());
     }
 
-    fn decode(buffer: &ReadableBufferImpl<E>, offset: usize, result: &mut Self) {
+    fn decode<B: ReadableBuffer<E>>(buffer: &B, offset: usize, result: &mut Self) {
         let mut header_item_offset = offset;
         let header_item_size = field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
         let mut elems_count = 0u32;
         let mut data_offset = 0u32;
         let mut data_size = 0u32;
-        simple_encoder_decode!(
+        simple_encoder_call!(@dec
             u32,
             SimpleEncoder,
             E,
@@ -187,7 +187,7 @@ where
             &mut elems_count
         );
         header_item_offset += header_item_size;
-        simple_encoder_decode!(
+        simple_encoder_call!(@dec
             u32,
             SimpleEncoder,
             E,
@@ -197,7 +197,7 @@ where
             &mut data_offset
         );
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
-        simple_encoder_decode!(
+        simple_encoder_call!(@dec
             u32,
             SimpleEncoder,
             E,
