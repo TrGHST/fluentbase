@@ -3,11 +3,11 @@ use alloc::vec::Vec;
 use byteorder::ByteOrder;
 
 use crate::buffer::ReadableBufferImpl;
-use crate::encoder::{FieldEncoder, Serializable, SimpleEncoder, ALIGN_DEFAULT};
+use crate::encoder::{Serializable, SimpleEncoder, StructuredEncoder, ALIGN_DEFAULT};
 use crate::{
     buffer::WritableBuffer, dynamic_size_aligned_padding, field_encoder_const_val,
     fixed_type_size_aligned, fixed_type_size_aligned_padding, header_item_size, header_size,
-    if_align_default_then, simple_encoder_call, size_of, ReadableBuffer,
+    if_align_default_then, simple_encoder_call, size_of, Encoder, ReadableBuffer,
 };
 
 macro_rules! impl_simple_encoder_vec {
@@ -122,8 +122,8 @@ where
     }
 }
 
-impl<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>> FieldEncoder<E, A, Vec<T>>
-    for Vec<T>
+impl<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>>
+    StructuredEncoder<E, A, Vec<T>> for Vec<T>
 where
     Vec<T>: SimpleEncoder<E, A, Vec<T>>,
 {
@@ -208,5 +208,19 @@ where
         );
         header_item_offset += field_encoder_const_val!(Self, E, A, HEADER_ITEM_SIZE);
         <Self as SimpleEncoder<E, A, Self>>::decode(buffer, data_offset as usize, result);
+    }
+}
+
+impl<E: ByteOrder, const A: usize, T: Sized> Encoder<E, A, Vec<T>> for Vec<T> {
+    const HEADER_SIZE: usize = header_size!(A, 3);
+
+    fn encode<B: WritableBuffer<E>>(&self, buffer: &mut B, field_offset: usize) {}
+
+    fn decode<B: ReadableBuffer<E>>(
+        buffer: &B,
+        field_offset: usize,
+        result: &mut Self,
+    ) -> (usize, usize) {
+        todo!()
     }
 }

@@ -1,8 +1,9 @@
 use byteorder::{BE, LE};
+use hashbrown::HashMap;
 
-use crate::encoder::{Encoder, FieldEncoder, ALIGN_DEFAULT};
+use crate::encoder::{Encoder, StructuredEncoder, ALIGN_DEFAULT};
 use crate::{
-    define_codec_struct, encoder_const_val, header_item_size, header_size, ReadableBufferImpl,
+    define_codec_struct, encoder_call, encoder_const_val, header_item_size, ReadableBufferImpl,
     WritableBufferImpl, ALIGN_32,
 };
 
@@ -130,345 +131,342 @@ fn test_simple_type_alignment_32_u_be() {
     assert_eq!(value0, value1);
 }
 
-// #[test]
-// fn test_simple_type_s_alignment_default_le() {
-//     type Endianness = LE;
-//     const ALIGN: usize = ALIGN_DEFAULT;
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeS {
-//             a: i64,
-//             b: i32,
-//             c: i16,
-//         }
-//     }
-//     let value0 = SimpleTypeS {
-//         a: -100,
-//         b: -20,
-//         c: -3,
-//     };
-//     assert_eq!(
-//         <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
-//         <i64 as Encoder<Endianness, ALIGN, i64>>::HEADER_SIZE
-//             + <i32 as Encoder<Endianness, ALIGN, i32>>::HEADER_SIZE
-//             + <i16 as Encoder<Endianness, ALIGN, i16>>::HEADER_SIZE
-//     );
-//     let encoded_value = {
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
-//             <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
-//             None,
-//         );
-//         call_encode!(
-//             SimpleTypeS,
-//             Endianness,
-//             ALIGN,
-//             &value0,
-//             &mut buffer_encoder,
-//             0
-//         );
-//         buffer_encoder.finalize()
-//     };
-//     let expected = "\
-//         9cffffffffffffff\
-//         ecffffff\
-//         fdff\
-//         ";
-//     let fact = hex::encode(&encoded_value);
-//     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
-//     let mut value1 = Default::default();
-//     call_decode_body!(
-//         SimpleTypeS,
-//         Endianness,
-//         ALIGN,
-//         &mut buffer_decoder,
-//         0,
-//         &mut value1
-//     );
-//     assert_eq!(value0, value1);
-// }
-//
-// #[test]
-// fn test_simple_type_s_alignment_32_be() {
-//     type Endianness = BE;
-//     const ALIGN: usize = ALIGN_32;
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeS {
-//             a: i64,
-//             b: i32,
-//             c: i16,
-//         }
-//     }
-//     let value0 = SimpleTypeS {
-//         a: -100,
-//         b: -20,
-//         c: -3,
-//     };
-//
-//     assert_eq!(
-//         <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
-//         <i64 as Encoder<Endianness, ALIGN, i64>>::HEADER_SIZE
-//             + <i32 as Encoder<Endianness, ALIGN, i32>>::HEADER_SIZE
-//             + <i16 as Encoder<Endianness, ALIGN, i16>>::HEADER_SIZE
-//     );
-//     let encoded_value = {
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
-//             <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
-//             None,
-//         );
-//         call_encode!(
-//             SimpleTypeS,
-//             Endianness,
-//             ALIGN,
-//             &value0,
-//             &mut buffer_encoder,
-//             0
-//         );
-//         buffer_encoder.finalize()
-//     };
-//     let expected = "\
-//         ffffffffffffff9c000000000000000000000000000000000000000000000000\
-//         ffffffec00000000000000000000000000000000000000000000000000000000\
-//         fffd000000000000000000000000000000000000000000000000000000000000\
-//         ";
-//     let fact = hex::encode(&encoded_value);
-//     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
-//     let mut value1 = Default::default();
-//     call_decode_body!(
-//         SimpleTypeS,
-//         Endianness,
-//         ALIGN,
-//         &mut buffer_decoder,
-//         0,
-//         &mut value1
-//     );
-//     assert_eq!(value0, value1);
-// }
-//
-// #[test]
-// fn test_decode_specific_field_alignment_default_le() {
-//     type Endianness = LE;
-//     const ALIGN: usize = ALIGN_DEFAULT;
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeU {
-//             a: u64,
-//             b: u32,
-//             c: u16,
-//         }
-//     }
-//     let value = SimpleTypeU {
-//         a: 100,
-//         b: 20,
-//         c: 3,
-//     };
-//     // check offsets
-//     assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_OFFSET, 0);
-//     assert_eq!(
-//         header_item_size!(ALIGN, u64),
-//         <SimpleTypeU as ISimpleTypeU>::B::FIELD_OFFSET,
-//     );
-//     assert_eq!(
-//         header_item_size!(ALIGN, u64) + header_item_size!(ALIGN, u32),
-//         <SimpleTypeU as ISimpleTypeU>::C::FIELD_OFFSET,
-//     );
-//     // check sizes
-//     assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_SIZE, 8);
-//     assert_eq!(<SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE, 4);
-//     assert_eq!(<SimpleTypeU as ISimpleTypeU>::C::FIELD_SIZE, 2);
-//     // encode entire struct
-//     let encoded_value =
-//         <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode_to_vec(&value, 0);
-//     let mut encoded_value = encoded_value.as_slice();
-//     // decode only field `a`
-//     {
-//         let mut a: u64 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::A::decode_field_header(&mut encoded_value, &mut a);
-//         assert_eq!(a, value.a);
-//     }
-//     // decode only field `b`
-//     {
-//         let mut b: u32 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::B::decode_field_header(&mut encoded_value, &mut b);
-//         assert_eq!(b, value.b);
-//     }
-//     // decode only field `c`
-//     {
-//         let mut c: u16 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::C::decode_field_header(&mut encoded_value, &mut c);
-//         assert_eq!(c, value.c);
-//     }
-// }
-//
-// #[test]
-// fn test_decode_specific_field_alignment_32_be() {
-//     type Endianness = BE;
-//     const ALIGN: usize = ALIGN_32;
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeU {
-//             a: u64,
-//             b: u32,
-//             c: u16,
-//         }
-//     }
-//     let value = SimpleTypeU {
-//         a: 100,
-//         b: 20,
-//         c: 3,
-//     };
-//     // check offsets
-//     assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_OFFSET, 0);
-//     // assert_eq!(
-//     //     <SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE,
-//     //     header_item_size!(ALIGN, u64)
-//     // );
-//     assert_eq!(
-//         <SimpleTypeU as ISimpleTypeU>::B::FIELD_OFFSET,
-//         header_item_size!(ALIGN, u64)
-//     );
-//     assert_eq!(
-//         <SimpleTypeU as ISimpleTypeU>::C::FIELD_OFFSET,
-//         header_item_size!(ALIGN, u64) + header_item_size!(ALIGN, u32)
-//     );
-//     // check sizes
-//     assert_eq!(
-//         <SimpleTypeU as ISimpleTypeU>::A::FIELD_SIZE,
-//         header_item_size!(ALIGN, u64)
-//     );
-//     assert_eq!(
-//         <SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE,
-//         header_item_size!(ALIGN, u32)
-//     );
-//     assert_eq!(
-//         <SimpleTypeU as ISimpleTypeU>::C::FIELD_SIZE,
-//         header_item_size!(ALIGN, u16)
-//     );
-//     // encode entire struct
-//     let encoded_value =
-//         <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode_to_vec(&value, 0);
-//     let mut encoded_value = encoded_value.as_slice();
-//     let encoded_value_hex = hex::encode(encoded_value);
-//     let expected_encoded_value_hex = "\
-//         0000000000000064000000000000000000000000000000000000000000000000\
-//         0000001400000000000000000000000000000000000000000000000000000000\
-//         0003000000000000000000000000000000000000000000000000000000000000";
-//     assert_eq!(expected_encoded_value_hex, encoded_value_hex);
-//     // decode only field `a`
-//     {
-//         let mut a: u64 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::A::decode_field_header(&mut encoded_value, &mut a);
-//         assert_eq!(a, value.a);
-//     }
-//     // decode only field `b`
-//     {
-//         let mut b: u32 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::B::decode_field_header(&mut encoded_value, &mut b);
-//         assert_eq!(b, value.b);
-//     }
-//     // decode only field `c`
-//     {
-//         let mut c: u16 = 0;
-//         <SimpleTypeU as ISimpleTypeU>::C::decode_field_header(&mut encoded_value, &mut c);
-//         assert_eq!(c, value.c);
-//     }
-// }
-//
-// #[test]
-// fn test_complicated_type_alignment_default_le() {
-//     type Endianness = LE;
-//     const ALIGN: usize = ALIGN_DEFAULT;
-//     define_codec_struct! {
-//         Endianness,
-//         ALIGN,
-//         pub struct SimpleTypeU {
-//             a: u64,
-//             b: u32,
-//             c: u16,
-//         }
-//     }
-//     define_codec_struct! {
-//         Endianness, ALIGN,
-//         pub struct ComplicatedType {
-//             values: Vec<SimpleTypeU>,
-//             maps: HashMap<u32, ComplicatedType>,
-//         }
-//     }
-//
-//     let value0 = ComplicatedType {
-//         values: vec![
-//             SimpleTypeU {
-//                 a: 100,
-//                 b: 20,
-//                 c: 3,
-//             },
-//             SimpleTypeU {
-//                 a: u64::MAX,
-//                 b: u32::MAX,
-//                 c: u16::MAX,
-//             },
-//         ],
-//         maps: HashMap::from([(
-//             7,
-//             ComplicatedType {
-//                 values: vec![
-//                     SimpleTypeU { a: 1, b: 2, c: 3 },
-//                     SimpleTypeU { a: 4, b: 5, c: 6 },
-//                 ],
-//                 maps: Default::default(),
-//             },
-//         )]),
-//     };
-//     assert_eq!(
-//         <ComplicatedType as Encoder<Endianness, ALIGN, ComplicatedType>>::HEADER_SIZE,
-//         <Vec<SimpleTypeU> as Encoder<Endianness, ALIGN, Vec<SimpleTypeU>>>::HEADER_SIZE
-//             + <HashMap::<u32, SimpleTypeU> as Encoder<
-//                 Endianness,
-//                 ALIGN,
-//                 HashMap::<u32, SimpleTypeU>,
-//             >>::HEADER_SIZE
-//     );
-//     let encoded_value = {
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
-//             <ComplicatedType as Encoder<Endianness, ALIGN, ComplicatedType>>::HEADER_SIZE,
-//             None,
-//         );
-//         call_encode!(
-//             ComplicatedType,
-//             Endianness,
-//             ALIGN,
-//             &value0,
-//             &mut buffer_encoder,
-//             0
-//         );
-//         buffer_encoder.finalize()
-//     };
-//     let fact = hex::encode(&encoded_value);
-//     let expected = "\
-//         02000000200000001c000000010000003c00000004000000400000003c000000\
-//         6400000000000000140000000300ffffffffffffffffffffffffffff07000000\
-//         02000000200000001c000000000000003c000000000000003c00000000000000\
-//         01000000000000000200000003000400000000000000050000000600";
-//     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
-//     let mut value1 = Default::default();
-//     call_decode_body!(
-//         ComplicatedType,
-//         Endianness,
-//         ALIGN,
-//         &mut buffer_decoder,
-//         0,
-//         &mut value1
-//     );
-//     assert_eq!(value0, value1);
-// }
-//
+#[test]
+fn test_simple_type_s_alignment_default_le() {
+    type Endianness = LE;
+    const ALIGN: usize = ALIGN_DEFAULT;
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeS {
+            a: i64,
+            b: i32,
+            c: i16,
+        }
+    }
+    let value0 = SimpleTypeS {
+        a: -100,
+        b: -20,
+        c: -3,
+    };
+    assert_eq!(
+        <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
+        <i64 as Encoder<Endianness, ALIGN, i64>>::HEADER_SIZE
+            + <i32 as Encoder<Endianness, ALIGN, i32>>::HEADER_SIZE
+            + <i16 as Encoder<Endianness, ALIGN, i16>>::HEADER_SIZE
+    );
+    let encoded_value = {
+        let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
+            <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
+            None,
+        );
+        encoder_call!(@encode
+            SimpleTypeS,
+            Endianness,
+            ALIGN,
+            &mut buffer_encoder,
+            0,
+            &value0,
+        );
+        buffer_encoder.finalize()
+    };
+    let expected = "\
+        9cffffffffffffff\
+        ecffffff\
+        fdff\
+        ";
+    let fact = hex::encode(&encoded_value);
+    assert_eq!(expected, fact);
+    let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
+    let mut value1 = SimpleTypeS::default();
+    encoder_call!(@decode_body
+        SimpleTypeS,
+        Endianness,
+        ALIGN,
+        &mut buffer_decoder,
+        0,
+        &mut value1
+    );
+    assert_eq!(value0, value1);
+}
+
+#[test]
+fn test_simple_type_s_alignment_32_be() {
+    type Endianness = BE;
+    const ALIGN: usize = ALIGN_32;
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeS {
+            a: i64,
+            b: i32,
+            c: i16,
+        }
+    }
+    let value0 = SimpleTypeS {
+        a: -100,
+        b: -20,
+        c: -3,
+    };
+
+    assert_eq!(
+        <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
+        <i64 as Encoder<Endianness, ALIGN, i64>>::HEADER_SIZE
+            + <i32 as Encoder<Endianness, ALIGN, i32>>::HEADER_SIZE
+            + <i16 as Encoder<Endianness, ALIGN, i16>>::HEADER_SIZE
+    );
+    let encoded_value = {
+        let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
+            <SimpleTypeS as Encoder<Endianness, ALIGN, SimpleTypeS>>::HEADER_SIZE,
+            None,
+        );
+        encoder_call!(@encode
+            SimpleTypeS,
+            Endianness,
+            ALIGN,
+            &mut buffer_encoder,
+            0,
+            &value0,
+        );
+        buffer_encoder.finalize()
+    };
+    let expected = "\
+    000000000000000000000000000000000000000000000000ffffffffffffff9c\
+    00000000000000000000000000000000000000000000000000000000ffffffec\
+    000000000000000000000000000000000000000000000000000000000000fffd\
+    ";
+    let fact = hex::encode(&encoded_value);
+    assert_eq!(expected, fact);
+    let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
+    let mut value1 = Default::default();
+    encoder_call!(@decode_body
+        SimpleTypeS,
+        Endianness,
+        ALIGN,
+        &mut buffer_decoder,
+        0,
+        &mut value1
+    );
+    assert_eq!(value0, value1);
+}
+
+#[test]
+fn test_decode_specific_field_alignment_default_le() {
+    type Endianness = LE;
+    const ALIGN: usize = ALIGN_DEFAULT;
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeU {
+            a: u64,
+            b: u32,
+            c: u16,
+        }
+    }
+    let value = SimpleTypeU {
+        a: 100,
+        b: 20,
+        c: 3,
+    };
+    // check offsets
+    assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_OFFSET, 0);
+    assert_eq!(
+        header_item_size!(ALIGN, u64),
+        <SimpleTypeU as ISimpleTypeU>::B::FIELD_OFFSET,
+    );
+    assert_eq!(
+        header_item_size!(ALIGN, u64) + header_item_size!(ALIGN, u32),
+        <SimpleTypeU as ISimpleTypeU>::C::FIELD_OFFSET,
+    );
+    // check sizes
+    assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_SIZE, 8);
+    assert_eq!(<SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE, 4);
+    assert_eq!(<SimpleTypeU as ISimpleTypeU>::C::FIELD_SIZE, 2);
+    // encode entire struct
+    let encoded_value =
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode_to_vec(&value, 0);
+    let mut encoded_value = encoded_value.as_slice();
+    // decode only field `a`
+    {
+        let mut a: u64 = 0;
+        <SimpleTypeU as ISimpleTypeU>::A::decode_field_header(&mut encoded_value, &mut a);
+        assert_eq!(a, value.a);
+    }
+    // decode only field `b`
+    {
+        let mut b: u32 = 0;
+        <SimpleTypeU as ISimpleTypeU>::B::decode_field_header(&mut encoded_value, &mut b);
+        assert_eq!(b, value.b);
+    }
+    // decode only field `c`
+    {
+        let mut c: u16 = 0;
+        <SimpleTypeU as ISimpleTypeU>::C::decode_field_header(&mut encoded_value, &mut c);
+        assert_eq!(c, value.c);
+    }
+}
+
+#[test]
+fn test_decode_specific_field_alignment_32_be() {
+    type Endianness = BE;
+    const ALIGN: usize = ALIGN_32;
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeU {
+            a: u64,
+            b: u32,
+            c: u16,
+        }
+    }
+    let value = SimpleTypeU {
+        a: 100,
+        b: 20,
+        c: 3,
+    };
+    // check offsets
+    assert_eq!(<SimpleTypeU as ISimpleTypeU>::A::FIELD_OFFSET, 0);
+    assert_eq!(
+        <SimpleTypeU as ISimpleTypeU>::B::FIELD_OFFSET,
+        header_item_size!(ALIGN, u64)
+    );
+    assert_eq!(
+        <SimpleTypeU as ISimpleTypeU>::C::FIELD_OFFSET,
+        header_item_size!(ALIGN, u64) + header_item_size!(ALIGN, u32)
+    );
+    // check sizes
+    assert_eq!(
+        <SimpleTypeU as ISimpleTypeU>::A::FIELD_SIZE,
+        header_item_size!(ALIGN, u64)
+    );
+    assert_eq!(
+        <SimpleTypeU as ISimpleTypeU>::B::FIELD_SIZE,
+        header_item_size!(ALIGN, u32)
+    );
+    assert_eq!(
+        <SimpleTypeU as ISimpleTypeU>::C::FIELD_SIZE,
+        header_item_size!(ALIGN, u16)
+    );
+    // encode entire struct
+    let encoded_value =
+        <SimpleTypeU as Encoder<Endianness, ALIGN, SimpleTypeU>>::encode_to_vec(&value, 0);
+    let mut encoded_value = encoded_value.as_slice();
+    let encoded_value_hex = hex::encode(encoded_value);
+    let expected_encoded_value_hex = "\
+    0000000000000000000000000000000000000000000000000000000000000064\
+    0000000000000000000000000000000000000000000000000000000000000014\
+    0000000000000000000000000000000000000000000000000000000000000003\
+    ";
+    assert_eq!(expected_encoded_value_hex, encoded_value_hex);
+    // decode only field `a`
+    {
+        let mut a: u64 = 0;
+        <SimpleTypeU as ISimpleTypeU>::A::decode_field_header(&mut encoded_value, &mut a);
+        assert_eq!(a, value.a);
+    }
+    // decode only field `b`
+    {
+        let mut b: u32 = 0;
+        <SimpleTypeU as ISimpleTypeU>::B::decode_field_header(&mut encoded_value, &mut b);
+        assert_eq!(b, value.b);
+    }
+    // decode only field `c`
+    {
+        let mut c: u16 = 0;
+        <SimpleTypeU as ISimpleTypeU>::C::decode_field_header(&mut encoded_value, &mut c);
+        assert_eq!(c, value.c);
+    }
+}
+
+#[ignore]
+#[test]
+fn test_complicated_type_alignment_default_le() {
+    type Endianness = LE;
+    const ALIGN: usize = ALIGN_DEFAULT;
+    define_codec_struct! {
+        Endianness,
+        ALIGN,
+        pub struct SimpleTypeU {
+            a: u64,
+            b: u32,
+            c: u16,
+        }
+    }
+    define_codec_struct! {
+        Endianness, ALIGN,
+        pub struct ComplicatedType {
+            values: Vec<SimpleTypeU>,
+            // maps: HashMap<u32, ComplicatedType>,
+        }
+    }
+
+    let value0 = ComplicatedType {
+        values: vec![
+            SimpleTypeU {
+                a: 100,
+                b: 20,
+                c: 3,
+            },
+            SimpleTypeU {
+                a: u64::MAX,
+                b: u32::MAX,
+                c: u16::MAX,
+            },
+        ],
+        // maps: HashMap::from([(
+        //     7,
+        //     ComplicatedType {
+        //         values: vec![
+        //             SimpleTypeU { a: 1, b: 2, c: 3 },
+        //             SimpleTypeU { a: 4, b: 5, c: 6 },
+        //         ],
+        //         maps: Default::default(),
+        //     },
+        // )]),
+    };
+    assert_eq!(
+        <ComplicatedType as Encoder<Endianness, ALIGN, ComplicatedType>>::HEADER_SIZE,
+        <Vec<SimpleTypeU> as Encoder<Endianness, ALIGN, Vec<SimpleTypeU>>>::HEADER_SIZE // + <HashMap<u32, SimpleTypeU> as Encoder<
+                                                                                        //     Endianness,
+                                                                                        //     ALIGN,
+                                                                                        //     HashMap<u32, SimpleTypeU>,
+                                                                                        // >>::HEADER_SIZE
+    );
+    let encoded_value = {
+        let mut buffer_encoder = WritableBufferImpl::<Endianness>::new(
+            <ComplicatedType as Encoder<Endianness, ALIGN, ComplicatedType>>::HEADER_SIZE,
+            None,
+        );
+        encoder_call!(@encode
+            ComplicatedType,
+            Endianness,
+            ALIGN,
+            &mut buffer_encoder,
+            0,
+            &value0,
+        );
+        buffer_encoder.finalize()
+    };
+    let fact = hex::encode(&encoded_value);
+    let expected = "\
+        02000000200000001c000000010000003c00000004000000400000003c000000\
+        6400000000000000140000000300ffffffffffffffffffffffffffff07000000\
+        02000000200000001c000000000000003c000000000000003c00000000000000\
+        01000000000000000200000003000400000000000000050000000600";
+    assert_eq!(expected, fact);
+    let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
+    let mut value1 = Default::default();
+    encoder_call!(@decode_body
+        ComplicatedType,
+        Endianness,
+        ALIGN,
+        &mut buffer_decoder,
+        0,
+        &mut value1
+    );
+    assert_eq!(value0, value1);
+}
+
 // #[ignore] // TODO
 // #[test]
 // fn test_complicated_type_alignment_32_be() {
@@ -525,7 +523,7 @@ fn test_simple_type_alignment_32_u_be() {
 //             >>::HEADER_SIZE
 //     );
 //     let encoded_value = {
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(
+//         let mut buffer_encoder = WritableBufferImpl::<Endianness, ALIGN>::new(
 //             <ComplicatedType as Encoder<Endianness, ALIGN, ComplicatedType>>::HEADER_SIZE,
 //             None,
 //         );
@@ -567,7 +565,7 @@ fn test_simple_type_alignment_32_u_be() {
 //         0000000000000000000000000000000000000000000000000000000000000000\
 //         000000000000000000000000";
 //     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
+//     let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
 //     let mut value1 = Default::default();
 //     call_decode_body!(
 //         ComplicatedType,
@@ -629,7 +627,7 @@ fn test_simple_type_alignment_32_u_be() {
 //     // );
 //     let encoded_value = {
 //         let hs = <FuncParams as Encoder<Endianness, ALIGN, FuncParams>>::HEADER_SIZE;
-//         let mut buffer_encoder = BufferEncoder::<Endianness, ALIGN>::new(hs, None);
+//         let mut buffer_encoder = WritableBufferImpl::<Endianness, ALIGN>::new(hs, None);
 //         call_encode!(
 //             FuncParams,
 //             Endianness,
@@ -685,7 +683,7 @@ fn test_simple_type_alignment_32_u_be() {
 //     let fact_items_aligned_count = fact_len / ALIGN / 2;
 //     println!("fact len {fact_len} fact aligned items count (align considered): {fact_items_aligned_count}");
 //     assert_eq!(expected, fact);
-//     let mut buffer_decoder = BufferDecoder::<Endianness>::new(encoded_value.as_slice());
+//     let mut buffer_decoder = ReadableBufferImpl::<Endianness>::new(encoded_value.as_slice());
 //     let mut value1 = Default::default();
 //     call_decode_body!(
 //         FuncParams,

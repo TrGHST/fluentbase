@@ -34,7 +34,7 @@ macro_rules! simple_encoder_call {
     };
 }
 
-pub trait FieldEncoder<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>> {
+pub trait StructuredEncoder<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E, A, T>> {
     const HEADER_ITEM_SIZE: usize = header_item_size!(A, T);
     const HEADER_SIZE: usize = header_item_size!(A, T);
 
@@ -46,19 +46,19 @@ pub trait FieldEncoder<E: ByteOrder, const A: usize, T: Sized + SimpleEncoder<E,
 #[macro_export]
 macro_rules! field_encoder_const_val {
     ($typ:ty, $endianness:ident, $align:ident, $const_ident:ident) => {
-        <$typ as $crate::FieldEncoder<$endianness, $align, $typ>>::$const_ident
+        <$typ as $crate::StructuredEncoder<$endianness, $align, $typ>>::$const_ident
     };
 }
 
 #[macro_export]
 macro_rules! field_encoder_call {
     (@enc $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val_in:expr $(,)?) => {
-        <$typ as $crate::FieldEncoder<$endianness, $align, $typ>>::encode(
+        <$typ as $crate::StructuredEncoder<$endianness, $align, $typ>>::encode(
             $val_in, $buffer, $offset,
         );
     };
     (@dec $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $out_out:expr $(,)?) => {
-        <$typ as $crate::FieldEncoder<$endianness, $align, $typ>>::decode(
+        <$typ as $crate::StructuredEncoder<$endianness, $align, $typ>>::decode(
             $buffer, $offset, $out_out,
         );
     };
@@ -127,5 +127,15 @@ pub trait Encoder<E: ByteOrder, const A: usize, T: Sized> {
 macro_rules! encoder_const_val {
     ($typ:ty, $endianness:ident, $align:ident, $const_ident:ident) => {
         <$typ as $crate::Encoder<$endianness, $align, $typ>>::$const_ident
+    };
+}
+
+#[macro_export]
+macro_rules! encoder_call {
+    (@encode $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val:expr $(,)?) => {
+        <$typ as Encoder<$endianness, $align, $typ>>::encode($val, $buffer, $offset);
+    };
+    (@decode_body $typ:ty, $endianness:ident, $align:ident, $buffer:expr, $offset:expr, $val:expr $(,)?) => {
+        <$typ as Encoder<$endianness, $align, $typ>>::decode_body($buffer, $offset, $val);
     };
 }

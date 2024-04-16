@@ -3,8 +3,8 @@ use byteorder::{BE, LE};
 use crate::buffer::ReadableBufferImpl;
 use crate::encoder::{SimpleEncoder, ALIGN_32, ALIGN_DEFAULT};
 use crate::{
-    dynamic_buffer_call, dynamic_size_aligned, field_encoder_call, field_encoder_const_val,
-    fixed_type_size_aligned, header_item_size, size_of, WritableBufferImpl,
+    dynamic_buffer_call, field_encoder_call, field_encoder_const_val, fixed_type_size_aligned,
+    header_item_size, WritableBufferImpl,
 };
 
 #[test]
@@ -227,7 +227,7 @@ fn test_field_encoder_be_a32_u64() {
     let mut v1_out: V1Type = 0;
 
     field_encoder_call!(@dec V1Type, End, ALIGN, &buffer, offset, &mut v1_out,);
-    let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, size_of!(V1Type));
+    // let v1_in_len_aligned = dynamic_size_aligned!(ALIGN, size_of!(V1Type));
     // v1_in.resize(v1_in_len_aligned, 0);
     assert_eq!(v1_in, v1_out);
 }

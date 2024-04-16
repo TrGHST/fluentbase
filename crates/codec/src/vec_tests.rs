@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use byteorder::{BE, LE};
 
 use crate::buffer::ReadableBufferImpl;
-use crate::encoder::{FieldEncoder, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT};
+use crate::encoder::{SimpleEncoder, StructuredEncoder, ALIGN_32, ALIGN_DEFAULT};
 use crate::{
     dynamic_buffer_call, dynamic_size_aligned, field_encoder_call, field_encoder_const_val,
     header_item_size, header_size, size_aligned, size_of, WritableBufferImpl,

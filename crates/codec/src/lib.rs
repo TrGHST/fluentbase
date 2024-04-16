@@ -5,7 +5,7 @@ extern crate core;
 
 pub use crate::buffer::{ReadableBuffer, ReadableBufferImpl, WritableBuffer, WritableBufferImpl};
 pub use crate::encoder::{
-    Encoder, FieldEncoder, FieldMeta, Serializable, SimpleEncoder, ALIGN_32, ALIGN_DEFAULT,
+    Encoder, FieldMeta, Serializable, SimpleEncoder, StructuredEncoder, ALIGN_32, ALIGN_DEFAULT,
 };
 
 mod buffer;
